@@ -2,10 +2,10 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
-Usage: ./stop-NOPHI-dev [--cuda]
+  cat <<EOF
+Usage: ./remove-NOPHI-dev.sh [--cuda]
 
-Stops the NOPHI dev container:
+Removes the NOPHI dev container:
   default name: ${USER}-NOPHI-dev
   CUDA name:    ${USER}-NOPHI-dev-cuda (with --cuda)
 EOF
