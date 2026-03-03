@@ -4,7 +4,7 @@ FROM ${BASE_IMAGE}
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
-    openssh-server sudo git curl wget vim nano tmux htop iputils-ping netcat-openbsd \
+    openssh-server sudo git gh curl wget vim nano tmux htop iputils-ping netcat-openbsd \
     build-essential ca-certificates python3 python3-pip python3-venv \
  && rm -rf /var/lib/apt/lists/*
 
