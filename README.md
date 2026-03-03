@@ -140,7 +140,7 @@ Remove CUDA container:
   - Builds CPU or CUDA image from `Dockerfile`
 - `start-NOPHI-dev.sh`
   - Starts per-user container on `cri-dev-net`
-- `remove-NOPHI-dev`
+- `remove-NOPHI-dev.sh`
   - Removes per-user CPU/CUDA container
 - `create-shared-data-dir.sh`
   - Prepares `/srv/NOPHI-data` and `cri-shared` membership
