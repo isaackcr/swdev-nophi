@@ -30,9 +30,10 @@ while (($# > 0)); do
   esac
 done
 
-NAME="${USER}-NOPHI-dev"
+USER_NAME="${USER:-$(id -un)}"
+NAME="${USER_NAME}-NOPHI-dev"
 if [[ "${USE_CUDA}" == "true" ]]; then
-  NAME="${USER}-NOPHI-dev-cuda"
+  NAME="${USER_NAME}-NOPHI-dev-cuda"
 fi
 
 if docker ps -a --format '{{.Names}}' | grep -qx "${NAME}"; then
