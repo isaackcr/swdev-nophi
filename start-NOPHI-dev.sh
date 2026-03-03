@@ -54,7 +54,7 @@ fi
 mkdir -p "${WORKSPACE}"
 
 if [[ ! -f "${HOME}/.ssh/authorized_keys" ]]; then
-  echo "Missing ${HOME}/.ssh/authorized_keys on cri-gpu."
+  echo "Missing ${HOME}/.ssh/authorized_keys on host $(hostname)."
   exit 1
 fi
 
