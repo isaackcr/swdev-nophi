@@ -36,7 +36,7 @@ if [[ "${USE_CUDA}" == "true" ]]; then
   NAME="${USER_NAME}-NOPHI-dev-cuda"
 fi
 
-if docker ps -a --format '{{.Names}}' | grep -qx "${NAME}"; then
+if docker ps -a --format '{{.Names}}' | grep -Fxq "${NAME}"; then
   docker rm -f "${NAME}" >/dev/null
   echo "Container removed: ${NAME}"
 else
