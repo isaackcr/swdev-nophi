@@ -3,16 +3,16 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./build-NOPHI-dev [--cuda] [--tag IMAGE_TAG]
+Usage: ./build-NOPHI-dev.sh [--cuda] [--tag IMAGE_TAG]
 
 Builds Docker image from Dockerfile using:
   default base image: ubuntu:24.04
   CUDA base image:    nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04 (with --cuda)
 
 Examples:
-  ./build-NOPHI-dev
-  ./build-NOPHI-dev --cuda
-  ./build-NOPHI-dev --cuda --tag my-image:latest
+  ./build-NOPHI-dev.sh
+  ./build-NOPHI-dev.sh --cuda
+  ./build-NOPHI-dev.sh --cuda --tag my-image:latest
 EOF
 }
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./start-NOPHI-dev [--cuda]
+Usage: ./start-NOPHI-dev.sh [--cuda]
 
 Starts the NOPHI dev container:
   default image: nophi-dev:ubuntu24.04

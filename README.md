@@ -47,7 +47,15 @@ Defaults used:
 - `cri-dev-net`: `192.168.240.0/24`, gateway `192.168.240.1`
 - `cri-collab-net`: `192.168.241.0/24`, gateway `192.168.241.1` (optional)
 
-4. Optional: Configure Docker egress filtering for `cri-dev-net` (requires sudo).
+4. Optional (CUDA only): Configure NVIDIA Container Toolkit on the host (requires sudo).
+
+```bash
+./setup-nvidia-container-toolkit.sh
+```
+
+If your host already supports `docker run --gpus all ...`, you can skip this step.
+
+5. Optional: Configure Docker egress filtering for `cri-dev-net` (requires sudo).
 
 ```bash
 ./configure-docker-egress-filtering.sh
@@ -71,7 +79,7 @@ Add more blocked networks as needed:
   --block-subnet 10.42.0.0/16
 ```
 
-5. Build the container image.
+6. Build the container image.
 
 CPU image:
 
@@ -125,13 +133,13 @@ Startup behavior:
 Remove CPU container:
 
 ```bash
-./remove-NOPHI-dev
+./remove-NOPHI-dev.sh
 ```
 
 Remove CUDA container:
 
 ```bash
-./remove-NOPHI-dev --cuda
+./remove-NOPHI-dev.sh --cuda
 ```
 
 ## Script Reference
@@ -140,7 +148,7 @@ Remove CUDA container:
   - Builds CPU or CUDA image from `Dockerfile`
 - `start-NOPHI-dev.sh`
   - Starts per-user container on `cri-dev-net`
-- `remove-NOPHI-dev`
+- `remove-NOPHI-dev.sh`
   - Removes per-user CPU/CUDA container
 - `create-shared-data-dir.sh`
   - Prepares `/srv/NOPHI-data` and `cri-shared` membership
@@ -148,3 +156,5 @@ Remove CUDA container:
   - Ensures Docker bridge networks with fixed `192.168.x.x` subnets
 - `configure-docker-egress-filtering.sh`
   - Applies per-network Docker egress policy in `DOCKER-USER`
+- `setup-nvidia-container-toolkit.sh`
+  - Installs/configures NVIDIA Container Toolkit so Docker can run CUDA containers with `--gpus all`
