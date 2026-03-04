@@ -5,19 +5,99 @@ Docker-based development environment for NOPHI with:
 - Per-user dev container startup/removal scripts
 - Shared host data directory setup
 - Dedicated Docker bridge network setup
-- Optional Docker egress filtering via `iptables`
+- Docker network egress filtering via `iptables`, prevents access to internal networks but Internet is allowed.
 
-## Installation
+## Getting Started as a Developer (After server has already been set up)
 
-Assumption: Docker is already installed and usable by your user.
+The purpose of this project is to provide a sandboxed container for software development with AI coding tools that must not access PHI.
 
-1. Move into this directory.
+**NEVER** place PHI in either host-mounted path or copy it to your container:
+- `${HOME}/NOPHI-home` (your personal persistent workspace, created for you)
+- `/srv/NOPHI-data` (shared data directory, created for you)
+
+Network boundary: these containers cannot access internal hosts or internal network resources. They can reach external Internet endpoints and other containers attached to `cri-collab-net`.
+
+**NEVER** allow PHI to be accessed by these containers or transferred over any network path, including SSH.
+
+Assumptions:
+- [Docker](https://docs.docker.com/engine/install/ubuntu/) is installed and usable by your user.
+- All of the installation steps at the bottom of this document were completed by an admin already.
+- `nophi-start` and `nophi-remove` were installed by an admin and are on your `PATH`.
+- Docker network `cri-dev-net` was created during server setup.
+- Your public key is in `${HOME}/.ssh/authorized_keys` for SSH access (the file is auto-created if missing, but you still need to add a key).
+
+1. Start your container.
+
+Auto-select mode (uses CUDA when available, otherwise CPU):
 
 ```bash
-cd /path/to/NOPHI-dev
+nophi-start
 ```
 
-2. Configure the shared data directory (requires sudo).
+Force CPU mode:
+
+```bash
+nophi-start --cpu
+```
+
+Prefer CUDA mode (falls back to CPU if CUDA is unavailable):
+
+```bash
+nophi-start --cuda
+```
+
+Startup behavior:
+- Container name:
+  - CPU: `${USER}-NOPHI-dev`
+  - CUDA: `${USER}-NOPHI-dev-cuda`
+- Mounts:
+  - `${HOME}/NOPHI-home -> /home/${USER}`
+    Personal, persistent workspace (auto-created if missing). Use this for cloning repos and development work. Data here persists across container restarts/removals. NEVER store PHI data here.
+  - `/srv/NOPHI-data -> /data`
+    Shared NOPHI data directory (created during server setup). NEVER store PHI data here.
+  - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
+    Used for SSH access to the container user account. The host file is auto-created if missing.
+- SSH port is derived as `40000 + $(id -u)`
+
+2. Stop/remove your container.
+
+Auto-select target (prefers CUDA target when available, otherwise CPU; if that container does not exist, it tries the other target):
+
+```bash
+nophi-remove
+```
+
+Force CPU target:
+
+```bash
+nophi-remove --cpu
+```
+
+Prefer CUDA target (falls back to CPU if CUDA is unavailable):
+
+```bash
+nophi-remove --cuda
+```
+
+---
+
+## Server Prep/Installation
+
+Use this section for first-time host setup by an admin.
+
+1. Clone this Git repo.
+
+```bash
+git clone <repo-url>
+```
+
+2. Move into the cloned repository.
+
+```bash
+cd NOPHI-dev
+```
+
+3. Configure the shared data directory (requires sudo).
 
 ```bash
 ./create-shared-data-dir.sh
@@ -31,23 +111,25 @@ What this does:
 
 If your user was newly added to `cri-shared`, log out and back in before continuing.
 
-3. Create Docker bridge networks.
+4. Create Docker bridge networks.
 
 ```bash
 ./create-docker-networks.sh
 ```
 
-Optional collaboration network:
+This creates both networks:
+- `cri-dev-net`: `192.168.240.0/24`, gateway `192.168.240.1`
+- `cri-collab-net`: `192.168.241.0/24`, gateway `192.168.241.1`
+
+5. Optional (CUDA only): Configure NVIDIA Container Toolkit on the host (requires sudo).
 
 ```bash
-./create-docker-networks.sh --collab
+./setup-nvidia-container-toolkit.sh
 ```
 
-Defaults used:
-- `cri-dev-net`: `192.168.240.0/24`, gateway `192.168.240.1`
-- `cri-collab-net`: `192.168.241.0/24`, gateway `192.168.241.1` (optional)
+If your host already supports `docker run --gpus all ...`, you can skip this step.
 
-4. Optional: Configure Docker egress filtering for `cri-dev-net` (requires sudo).
+6. Optional: Configure Docker egress filtering for `cri-dev-net` (requires sudo).
 
 ```bash
 ./configure-docker-egress-filtering.sh
@@ -71,80 +153,92 @@ Add more blocked networks as needed:
   --block-subnet 10.42.0.0/16
 ```
 
-5. Build the container image.
+7. If UFW is enabled on the host, allow inbound SSH port range for remote clients.
 
-CPU image:
+```bash
+sudo ufw allow from 172.19.149.0/24 to any port 42000:43000 proto tcp
+sudo ufw allow from 172.19.20.0/24 to any port 42000:43000 proto tcp
+sudo ufw status numbered
+```
+
+Without these rules, SSH from another client may be blocked even when the container is running.
+
+8. Build container images.
+
+Build both CPU and CUDA images (default):
 
 ```bash
 ./build-NOPHI-dev.sh
 ```
 
-CUDA image:
+Build CPU image only:
+
+```bash
+./build-NOPHI-dev.sh --cpu
+```
+
+Build CUDA image only (if the server has NVIDIA GPUs and developers will use CUDA):
 
 ```bash
 ./build-NOPHI-dev.sh --cuda
 ```
 
-Custom tag:
+On non-GPU servers, CUDA build paths are treated as no-ops and skipped.
+
+Custom tag (single-image build only):
 
 ```bash
-./build-NOPHI-dev.sh --tag my-image:latest
+./build-NOPHI-dev.sh --cpu --tag my-image:latest
 ```
 
-## Run
-
-Start CPU container:
+9. Install global developer commands (requires sudo).
 
 ```bash
-./start-NOPHI-dev.sh
+./install-nophi-commands.sh
 ```
 
-Start CUDA container:
+Custom install prefix:
 
 ```bash
-./start-NOPHI-dev.sh --cuda
+./install-nophi-commands.sh --prefix /opt/nophi/bin
 ```
 
-Startup behavior:
-- Container name:
-  - CPU: `${USER}-NOPHI-dev`
-  - CUDA: `${USER}-NOPHI-dev-cuda`
-- Docker image:
-  - CPU: `NOPHI-dev:ubuntu24.04`
-  - CUDA: `NOPHI-dev-cuda:cuda12.6.3`
-- Mounts:
-  - `${HOME}/NOPHI-workspace -> /workspace`
-  - `/srv/NOPHI-data -> /data`
-  - `${HOME}/.ssh/authorized_keys` (required) -> container user `~/.ssh/authorized_keys`
-- SSH port is derived as `20000 + $(id -u)`
-- If `cri-dev-net` is missing, it is auto-created by `start-NOPHI-dev.sh`
-- `--gpus all` is applied only in `--cuda` mode
+If you use a custom prefix, ensure it is on each developer's `PATH`.
 
-## Stop/Remove
+This installs:
+- `nophi-start`
+- `nophi-remove`
 
-Remove CPU container:
+10. Ensure each developer account can run containers and access shared data.
+
+For each developer user:
+- Add to `docker` group
+- Add to `cri-shared` group
+- Ensure `~/.ssh/authorized_keys` contains their public SSH key
+
+Example:
 
 ```bash
-./remove-NOPHI-dev
+sudo usermod -aG docker,cri-shared <username>
 ```
 
-Remove CUDA container:
-
-```bash
-./remove-NOPHI-dev --cuda
-```
+Users added to new groups must log out and back in.
 
 ## Script Reference
 
 - `build-NOPHI-dev.sh`
-  - Builds CPU or CUDA image from `Dockerfile`
+  - Builds CPU and CUDA images by default, or selected image(s) with `--cpu` / `--cuda`
 - `start-NOPHI-dev.sh`
-  - Starts per-user container on `cri-dev-net`
+  - Starts per-user container on `cri-dev-net` with auto CPU/CUDA selection (`--cpu` / `--cuda` supported)
 - `remove-NOPHI-dev.sh`
-  - Removes per-user CPU/CUDA container
+  - Removes per-user container with auto CPU/CUDA target selection (`--cpu` / `--cuda` supported)
 - `create-shared-data-dir.sh`
   - Prepares `/srv/NOPHI-data` and `cri-shared` membership
 - `create-docker-networks.sh`
   - Ensures Docker bridge networks with fixed `192.168.x.x` subnets
 - `configure-docker-egress-filtering.sh`
   - Applies per-network Docker egress policy in `DOCKER-USER`
+- `setup-nvidia-container-toolkit.sh`
+  - Installs/configures NVIDIA Container Toolkit so Docker can run CUDA containers with `--gpus all`
+- `install-nophi-commands.sh`
+  - Installs `nophi-start` and `nophi-remove` into `/usr/local/bin` (or a custom prefix)

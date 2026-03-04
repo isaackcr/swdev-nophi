@@ -3,21 +3,16 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./create-docker-networks.sh [--collab]
+Usage: ./create-docker-networks.sh
 
 Ensures Docker bridge networks exist with non-172.x subnets:
   cri-dev-net    192.168.240.0/24 (gateway 192.168.240.1)
-  cri-collab-net 192.168.241.0/24 (gateway 192.168.241.1, optional with --collab)
+  cri-collab-net 192.168.241.0/24 (gateway 192.168.241.1)
 EOF
 }
 
-CREATE_COLLAB=false
-while (($# > 0)); do
+if (($# > 0)); then
   case "$1" in
-    --collab)
-      CREATE_COLLAB=true
-      shift
-      ;;
     -h|--help)
       usage
       exit 0
@@ -28,7 +23,7 @@ while (($# > 0)); do
       exit 1
       ;;
   esac
-done
+fi
 
 ensure_network() {
   local name="$1"
@@ -73,7 +68,4 @@ ensure_network() {
 }
 
 ensure_network "cri-dev-net" "192.168.240.0/24" "192.168.240.1"
-
-if [[ "${CREATE_COLLAB}" == "true" ]]; then
-  ensure_network "cri-collab-net" "192.168.241.0/24" "192.168.241.1"
-fi
+ensure_network "cri-collab-net" "192.168.241.0/24" "192.168.241.1"

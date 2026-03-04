@@ -59,6 +59,14 @@ fi
 
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
 
+# For interactive SSH shells, start in the user's home directory.
+cat > /etc/profile.d/zz-home-default-dir.sh <<'EOF'
+if [[ -n "${SSH_CONNECTION:-}" && -t 1 && -n "${HOME:-}" && -d "${HOME}" ]]; then
+  cd "${HOME}" 2>/dev/null || true
+fi
+EOF
+chmod 0644 /etc/profile.d/zz-home-default-dir.sh
+
 # SSH config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
