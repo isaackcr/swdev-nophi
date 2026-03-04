@@ -22,7 +22,7 @@ Network boundary: these containers cannot access internal hosts or internal netw
 Assumptions:
 - [Docker](https://docs.docker.com/engine/install/ubuntu/) is installed and usable by your user.
 - All of the installation steps at the bottom of this document were completed by an admin already.
-- `start-nophi` and `remove-nophi` were installed by an admin and are on your `PATH`.
+- `nophi-start` and `nophi-remove` were installed by an admin and are on your `PATH`.
 - Docker network `cri-dev-net` was created during server setup.
 - Your public key is in `${HOME}/.ssh/authorized_keys` for SSH access (the file is auto-created if missing, but you still need to add a key).
 
@@ -31,19 +31,19 @@ Assumptions:
 Auto-select mode (uses CUDA when available, otherwise CPU):
 
 ```bash
-start-nophi
+nophi-start
 ```
 
 Force CPU mode:
 
 ```bash
-start-nophi --cpu
+nophi-start --cpu
 ```
 
 Prefer CUDA mode (falls back to CPU if CUDA is unavailable):
 
 ```bash
-start-nophi --cuda
+nophi-start --cuda
 ```
 
 Startup behavior:
@@ -64,19 +64,19 @@ Startup behavior:
 Auto-select target (prefers CUDA target when available, otherwise CPU; if that container does not exist, it tries the other target):
 
 ```bash
-remove-nophi
+nophi-remove
 ```
 
 Force CPU target:
 
 ```bash
-remove-nophi --cpu
+nophi-remove --cpu
 ```
 
 Prefer CUDA target (falls back to CPU if CUDA is unavailable):
 
 ```bash
-remove-nophi --cuda
+nophi-remove --cuda
 ```
 
 ---
@@ -206,8 +206,8 @@ Custom install prefix:
 If you use a custom prefix, ensure it is on each developer's `PATH`.
 
 This installs:
-- `start-nophi`
-- `remove-nophi`
+- `nophi-start`
+- `nophi-remove`
 
 10. Ensure each developer account can run containers and access shared data.
 
@@ -241,4 +241,4 @@ Users added to new groups must log out and back in.
 - `setup-nvidia-container-toolkit.sh`
   - Installs/configures NVIDIA Container Toolkit so Docker can run CUDA containers with `--gpus all`
 - `install-nophi-commands.sh`
-  - Installs `start-nophi` and `remove-nophi` into `/usr/local/bin` (or a custom prefix)
+  - Installs `nophi-start` and `nophi-remove` into `/usr/local/bin` (or a custom prefix)

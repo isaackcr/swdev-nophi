@@ -6,8 +6,8 @@ usage() {
 Usage: ./install-nophi-commands.sh [--prefix DIR]
 
 Installs global command aliases for NOPHI container lifecycle scripts:
-  start-nophi  -> start-NOPHI-dev.sh
-  remove-nophi -> remove-NOPHI-dev.sh
+  nophi-start  -> start-NOPHI-dev.sh
+  nophi-remove -> remove-NOPHI-dev.sh
 
 Default install prefix: /usr/local/bin
 EOF
@@ -61,9 +61,9 @@ else
 fi
 
 "${SUDO[@]}" install -d -m 755 "${PREFIX}"
-"${SUDO[@]}" install -m 755 "${START_SRC}" "${PREFIX}/start-nophi"
-"${SUDO[@]}" install -m 755 "${REMOVE_SRC}" "${PREFIX}/remove-nophi"
+"${SUDO[@]}" install -m 755 "${START_SRC}" "${PREFIX}/nophi-start"
+"${SUDO[@]}" install -m 755 "${REMOVE_SRC}" "${PREFIX}/nophi-remove"
 
 echo "Installed commands:"
-echo "  ${PREFIX}/start-nophi"
-echo "  ${PREFIX}/remove-nophi"
+echo "  ${PREFIX}/nophi-start"
+echo "  ${PREFIX}/nophi-remove"
