@@ -77,9 +77,9 @@ cuda_mode_available() {
 
 container_name_for_mode() {
   if [[ "$1" == "cuda" ]]; then
-    echo "${USER_NAME}-NOPHI-dev-cuda"
+    echo "${USER_NAME}-NOPHI-${HOSTNAME}-cuda"
   else
-    echo "${USER_NAME}-NOPHI-dev"
+    echo "${USER_NAME}-NOPHI-${HOSTNAME}"
   fi
 }
 
