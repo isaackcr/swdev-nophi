@@ -21,6 +21,7 @@ fi
 HOME_DIR="/home/${USERNAME}"
 SSH_DIR="${HOME_DIR}/.ssh"
 BASHRC="${HOME_DIR}/.bashrc"
+PROFILE="${HOME_DIR}/.profile"
 
 # Fix home ownership and permissions
 mkdir -p "${HOME_DIR}"
@@ -42,6 +43,19 @@ fi
 touch "${BASHRC}"
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
 
+# Ensure login shells source .bashrc (mounted homes may not include default skel files)
+touch "${PROFILE}"
+if ! grep -q 'Load .bashrc for interactive bash shells' "${PROFILE}"; then
+  cat >> "${PROFILE}" <<'EOF'
+
+# Load .bashrc for interactive bash shells
+if [ -n "${BASH_VERSION:-}" ] && [ -f "${HOME}/.bashrc" ]; then
+  . "${HOME}/.bashrc"
+fi
+EOF
+fi
+chown "${USER_UID}:${USER_GID}" "${PROFILE}"
+
 # TERM compatibility for remote clients
 if ! grep -q 'TERM compatibility for remote clients' "${BASHRC}"; then
   cat >> "${BASHRC}" <<'EOF'
@@ -58,6 +72,18 @@ EOF
 fi
 
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
+
+# TERM fallback for shells that do not load user dotfiles
+cat > /etc/profile.d/zz-term-compat.sh <<'EOF'
+if [ -n "${SSH_CONNECTION:-}" ] && [ -t 1 ]; then
+  case "${TERM:-}" in
+    xterm-ghostty|ghostty|unknown)
+      export TERM=xterm-256color
+      ;;
+  esac
+fi
+EOF
+chmod 0644 /etc/profile.d/zz-term-compat.sh
 
 # For interactive SSH shells, start in the user's home directory.
 cat > /etc/profile.d/zz-home-default-dir.sh <<'EOF'
