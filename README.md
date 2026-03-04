@@ -9,7 +9,7 @@ Docker-based development environment for NOPHI with:
 
 ## Installation
 
-Assumption: Docker is already installed and usable by your user.
+Assumption: [Docker](https://docs.docker.com/engine/install/ubuntu/) is already installed and usable by your user.
 
 1. Move into this directory.
 
@@ -110,8 +110,8 @@ Startup behavior:
   - CPU: `${USER}-NOPHI-dev`
   - CUDA: `${USER}-NOPHI-dev-cuda`
 - Docker image:
-  - CPU: `NOPHI-dev:ubuntu24.04`
-  - CUDA: `NOPHI-dev-cuda:cuda12.6.3`
+  - CPU: `nophi-dev:ubuntu24.04`
+  - CUDA: `nophi-dev-cuda:cuda12.6.3`
 - Mounts:
   - `${HOME}/NOPHI-workspace -> /workspace`
   - `/srv/NOPHI-data -> /data`

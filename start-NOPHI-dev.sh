@@ -6,8 +6,8 @@ usage() {
 Usage: ./start-NOPHI-dev [--cuda]
 
 Starts the NOPHI dev container:
-  default image: NOPHI-dev:ubuntu24.04
-  CUDA image:    NOPHI-dev-cuda:cuda12.6.3 (with --cuda)
+  default image: nophi-dev:ubuntu24.04
+  CUDA image:    nophi-dev-cuda:cuda12.6.3 (with --cuda)
 EOF
 }
 
@@ -35,14 +35,14 @@ UID_NUM="$(id -u)"
 GID_NUM="$(id -g)"
 PORT="$((20000 + UID_NUM))"
 NAME="${USER}-NOPHI-dev"
-IMAGE="NOPHI-dev:ubuntu24.04"
+IMAGE="nophi-dev:ubuntu24.04"
 WORKSPACE="${HOME}/NOPHI-workspace"
 SHARED="/srv/NOPHI-data"
 DOCKER_GPU_ARGS=()
 
 if [[ "${USE_CUDA}" == "true" ]]; then
   NAME="${USER}-NOPHI-dev-cuda"
-  IMAGE="NOPHI-dev-cuda:cuda12.6.3"
+  IMAGE="nophi-dev-cuda:cuda12.6.3"
   DOCKER_GPU_ARGS=(--gpus all)
 fi
 

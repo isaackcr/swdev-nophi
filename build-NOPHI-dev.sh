@@ -18,13 +18,13 @@ EOF
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_IMAGE="ubuntu:24.04"
-IMAGE_TAG="NOPHI-dev:ubuntu24.04"
+IMAGE_TAG="nophi-dev:ubuntu24.04"
 
 while (($# > 0)); do
   case "$1" in
     --cuda)
       BASE_IMAGE="nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04"
-      IMAGE_TAG="NOPHI-dev-cuda:cuda12.6.3"
+      IMAGE_TAG="nophi-dev-cuda:cuda12.6.3"
       shift
       ;;
     --tag)
