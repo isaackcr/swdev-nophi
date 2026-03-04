@@ -79,7 +79,17 @@ Add more blocked networks as needed:
   --block-subnet 10.42.0.0/16
 ```
 
-6. Build the container image.
+6. If UFW is enabled on the host, allow inbound SSH port range for remote clients.
+
+```bash
+sudo ufw allow from 172.19.149.0/24 to any port 42000:43000 proto tcp
+sudo ufw allow from 172.19.20.0/24 to any port 42000:43000 proto tcp
+sudo ufw status numbered
+```
+
+Without these rules, SSH from another client may be blocked even when the container is running.
+
+7. Build the container image.
 
 CPU image:
 
@@ -124,7 +134,7 @@ Startup behavior:
   - `${HOME}/NOPHI-workspace -> /workspace`
   - `/srv/NOPHI-data -> /data`
   - `${HOME}/.ssh/authorized_keys` (required) -> container user `~/.ssh/authorized_keys`
-- SSH port is derived as `20000 + $(id -u)`
+- SSH port is derived as `40000 + $(id -u)`
 - If `cri-dev-net` is missing, it is auto-created by `start-NOPHI-dev.sh`
 - `--gpus all` is applied only in `--cuda` mode
 

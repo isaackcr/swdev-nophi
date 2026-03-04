@@ -33,7 +33,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UID_NUM="$(id -u)"
 GID_NUM="$(id -g)"
-PORT="$((20000 + UID_NUM))"
+PORT="$((40000 + UID_NUM))"
 NAME="${USER}-NOPHI-dev"
 IMAGE="nophi-dev:ubuntu24.04"
 WORKSPACE="${HOME}/NOPHI-workspace"
