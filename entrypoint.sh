@@ -21,6 +21,7 @@ fi
 HOME_DIR="/home/${USERNAME}"
 SSH_DIR="${HOME_DIR}/.ssh"
 BASHRC="${HOME_DIR}/.bashrc"
+PROFILE="${HOME_DIR}/.profile"
 
 # Fix home ownership and permissions
 mkdir -p "${HOME_DIR}"
@@ -42,6 +43,19 @@ fi
 touch "${BASHRC}"
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
 
+# Ensure login shells source .bashrc (mounted homes may not include default skel files)
+touch "${PROFILE}"
+if ! grep -q 'Load .bashrc for interactive bash shells' "${PROFILE}"; then
+  cat >> "${PROFILE}" <<'EOF'
+
+# Load .bashrc for interactive bash shells
+if [ -n "${BASH_VERSION:-}" ] && [ -f "${HOME}/.bashrc" ]; then
+  . "${HOME}/.bashrc"
+fi
+EOF
+fi
+chown "${USER_UID}:${USER_GID}" "${PROFILE}"
+
 # TERM compatibility for remote clients
 if ! grep -q 'TERM compatibility for remote clients' "${BASHRC}"; then
   cat >> "${BASHRC}" <<'EOF'
@@ -57,7 +71,71 @@ fi
 EOF
 fi
 
+# Rich interactive shell defaults for container users
+if ! grep -q 'NOPHI rich interactive shell defaults' "${BASHRC}"; then
+  cat >> "${BASHRC}" <<'EOF'
+
+# NOPHI rich interactive shell defaults
+if [[ $- == *i* ]]; then
+  # Keep history useful across many SSH sessions
+  shopt -s histappend checkwinsize cmdhist
+  HISTSIZE=5000
+  HISTFILESIZE=10000
+
+  # Enable bash completion when available
+  if [[ -r /etc/bash_completion ]]; then
+    . /etc/bash_completion
+  fi
+
+  # Better completion and prompt coloring via readline
+  bind 'set colored-stats on' 2>/dev/null || true
+  bind 'set colored-completion-prefix on' 2>/dev/null || true
+  bind 'set show-all-if-ambiguous on' 2>/dev/null || true
+  bind 'set completion-ignore-case on' 2>/dev/null || true
+
+  # Baseline color aliases
+  if command -v dircolors >/dev/null 2>&1; then
+    eval "$(dircolors -b)"
+  fi
+  alias ls='ls --color=auto'
+  alias grep='grep --color=auto'
+  alias egrep='egrep --color=auto'
+  alias fgrep='fgrep --color=auto'
+
+  # Git prompt support (branch + dirty state) if available
+  if [[ -r /usr/lib/git-core/git-sh-prompt ]]; then
+    . /usr/lib/git-core/git-sh-prompt
+  elif [[ -r /etc/bash_completion.d/git-prompt ]]; then
+    . /etc/bash_completion.d/git-prompt
+  fi
+  export GIT_PS1_SHOWDIRTYSTATE=1
+  export GIT_PS1_SHOWSTASHSTATE=1
+  export GIT_PS1_SHOWUNTRACKEDFILES=1
+  export GIT_PS1_SHOWUPSTREAM=auto
+
+  # Colorful prompt; includes git branch when git prompt helper is available
+  if declare -F __git_ps1 >/dev/null 2>&1; then
+    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\]$(__git_ps1 " \[\e[38;5;141m\](%s)\[\e[0m\]") \[\e[38;5;46m\]\$\[\e[0m\] '
+  else
+    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\] \[\e[38;5;46m\]\$\[\e[0m\] '
+  fi
+fi
+EOF
+fi
+
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
+
+# TERM fallback for shells that do not load user dotfiles
+cat > /etc/profile.d/zz-term-compat.sh <<'EOF'
+if [ -n "${SSH_CONNECTION:-}" ] && [ -t 1 ]; then
+  case "${TERM:-}" in
+    xterm-ghostty|ghostty|unknown)
+      export TERM=xterm-256color
+      ;;
+  esac
+fi
+EOF
+chmod 0644 /etc/profile.d/zz-term-compat.sh
 
 # For interactive SSH shells, start in the user's home directory.
 cat > /etc/profile.d/zz-home-default-dir.sh <<'EOF'
