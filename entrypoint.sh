@@ -115,9 +115,9 @@ if [[ $- == *i* ]]; then
 
   # Colorful prompt; includes git branch when git prompt helper is available
   if declare -F __git_ps1 >/dev/null 2>&1; then
-    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\]$(__git_ps1 " \[\e[38;5;141m\](%s)\[\e[0m\]")\n\[\e[38;5;46m\]\$\[\e[0m\] '
+    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\]$(__git_ps1 " \[\e[38;5;141m\](%s)\[\e[0m\]") \[\e[38;5;46m\]\$\[\e[0m\] '
   else
-    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\]\n\[\e[38;5;46m\]\$\[\e[0m\] '
+    PS1='\[\e[38;5;39m\]\u@\h\[\e[0m\]:\[\e[38;5;214m\]\w\[\e[0m\] \[\e[38;5;46m\]\$\[\e[0m\] '
   fi
 fi
 EOF
