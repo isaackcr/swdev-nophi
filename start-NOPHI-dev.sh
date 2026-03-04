@@ -122,12 +122,12 @@ cuda_mode_available() {
 
 configure_mode() {
   if [[ "$1" == "cuda" ]]; then
-    NAME="${USER_NAME}-NOPHI-dev-cuda"
+    NAME="${USER_NAME}-NOPHI-${HOSTNAME}-cuda"
     IMAGE="nophi-dev-cuda:cuda12.6.3"
     IMAGE_BUILD_HINT="./build-NOPHI-dev.sh --cuda"
     DOCKER_GPU_ARGS=(--gpus all)
   else
-    NAME="${USER_NAME}-NOPHI-dev"
+    NAME="${USER_NAME}-NOPHI-${HOSTNAME}"
     IMAGE="nophi-dev:ubuntu24.04"
     IMAGE_BUILD_HINT="./build-NOPHI-dev.sh --cpu"
     DOCKER_GPU_ARGS=()
@@ -171,6 +171,8 @@ ensure_shared_access
 ensure_image_exists
 ensure_dev_network
 
+docker rm -f "${USER_NAME}-NOPHI-${HOSTNAME}" >/dev/null 2>&1 || true
+docker rm -f "${USER_NAME}-NOPHI-${HOSTNAME}-cuda" >/dev/null 2>&1 || true
 docker rm -f "${USER_NAME}-NOPHI-dev" >/dev/null 2>&1 || true
 docker rm -f "${USER_NAME}-NOPHI-dev-cuda" >/dev/null 2>&1 || true
 
