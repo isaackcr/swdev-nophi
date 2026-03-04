@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<'EOF'
+  cat <<EOF
 Usage: ./remove-NOPHI-dev.sh [--cuda]
 
 Removes the NOPHI dev container:
@@ -30,12 +30,13 @@ while (($# > 0)); do
   esac
 done
 
-NAME="${USER}-NOPHI-dev"
+USER_NAME="${USER:-$(id -un)}"
+NAME="${USER_NAME}-NOPHI-dev"
 if [[ "${USE_CUDA}" == "true" ]]; then
-  NAME="${USER}-NOPHI-dev-cuda"
+  NAME="${USER_NAME}-NOPHI-dev-cuda"
 fi
 
-if docker ps -a --format '{{.Names}}' | grep -qx "${NAME}"; then
+if docker ps -a --format '{{.Names}}' | grep -Fxq "${NAME}"; then
   docker rm -f "${NAME}" >/dev/null
   echo "Container removed: ${NAME}"
 else
