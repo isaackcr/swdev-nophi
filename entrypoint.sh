@@ -59,13 +59,13 @@ fi
 
 chown "${USER_UID}:${USER_GID}" "${BASHRC}"
 
-# For interactive SSH shells, start in /workspace instead of $HOME.
-cat > /etc/profile.d/zz-workspace-default-dir.sh <<'EOF'
-if [[ -n "${SSH_CONNECTION:-}" && -t 1 && -d /workspace ]]; then
-  cd /workspace 2>/dev/null || true
+# For interactive SSH shells, start in the user's home directory.
+cat > /etc/profile.d/zz-home-default-dir.sh <<'EOF'
+if [[ -n "${SSH_CONNECTION:-}" && -t 1 && -n "${HOME:-}" && -d "${HOME}" ]]; then
+  cd "${HOME}" 2>/dev/null || true
 fi
 EOF
-chmod 0644 /etc/profile.d/zz-workspace-default-dir.sh
+chmod 0644 /etc/profile.d/zz-home-default-dir.sh
 
 # SSH config
 sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config

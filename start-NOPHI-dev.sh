@@ -36,7 +36,7 @@ GID_NUM="$(id -g)"
 PORT="$((40000 + UID_NUM))"
 NAME="${USER}-NOPHI-dev"
 IMAGE="nophi-dev:ubuntu24.04"
-WORKSPACE="${HOME}/NOPHI-workspace"
+NOPHI_HOME="${HOME}/NOPHI-home"
 SHARED="/srv/NOPHI-data"
 DOCKER_GPU_ARGS=()
 
@@ -51,7 +51,7 @@ if (( PORT > 65535 )); then
   exit 1
 fi
 
-mkdir -p "${WORKSPACE}"
+mkdir -p "${NOPHI_HOME}"
 
 if [[ ! -f "${HOME}/.ssh/authorized_keys" ]]; then
   echo "Missing ${HOME}/.ssh/authorized_keys on host $(hostname)."
@@ -80,7 +80,7 @@ docker run -d \
   -e USERNAME="${USER}" \
   -e USER_UID="${UID_NUM}" \
   -e USER_GID="${GID_NUM}" \
-  -v "${WORKSPACE}:/workspace" \
+  -v "${NOPHI_HOME}:/home/${USER}" \
   -v "${SHARED}:/data" \
   -v "${HOME}/.ssh/authorized_keys:/home/${USER}/.ssh/authorized_keys:ro" \
   --label owner="${USER}" \
