@@ -7,13 +7,56 @@ Docker-based development environment for NOPHI with:
 - Dedicated Docker bridge network setup
 - Docker network egress filtering via `iptables`, prevents access to internal networks but Internet is allowed.
 
+## macOS 14+ (Single User, OrbStack or Docker Desktop Linux Containers)
+
+Use this flow on macOS instead of the Linux server-prep steps below.
+
+1. Run setup:
+
+```bash
+./macos-docker-setup.sh
+```
+
+What it does:
+- Creates `~/NOPHI-data` (or custom `--shared-dir`) for `/data` mount
+- Ensures `cri-dev-net` and `cri-collab-net` Docker networks exist
+- Builds CPU image only (`nophi-dev:ubuntu24.04`)
+- Installs `nophi-start` and `nophi-remove` into `~/.local/bin`
+- Applies egress filtering inside the macOS Docker VM for `cri-dev-net`
+- Installs a LaunchAgent that reapplies egress rules on Docker socket changes
+
+2. Start/remove your dev container:
+
+```bash
+nophi-start
+nophi-remove
+```
+
+3. Validate egress policy from the running container:
+
+```bash
+./test-nophi-egress.sh
+```
+
+4. Uninstall macOS network configuration created by setup:
+
+```bash
+./macos-docker-setup.sh --uninstall
+```
+
+Uninstall removes:
+- LaunchAgent `com.nophi.docker-egress`
+- Script-managed `DOCKER-USER` egress rules/chains (`DNET-*`) in the macOS Docker VM
+- Docker networks `cri-dev-net` and `cri-collab-net` (fails if still in use)
+
 ## Getting Started as a Developer (After server has already been set up)
 
 The purpose of this project is to provide a sandboxed container for software development with AI coding tools that must not access PHI.
 
 **NEVER** place PHI in either host-mounted path or copy it to your container:
 - `${HOME}/NOPHI-home` (your personal persistent workspace, created for you)
-- `/srv/NOPHI-data` (shared data directory, created for you)
+- Linux: `/srv/NOPHI-data` (shared data directory, created for you)
+- macOS: `${HOME}/NOPHI-data` (single-user shared data directory, created by `./macos-docker-setup.sh`)
 
 Network boundary: these containers cannot access internal hosts or internal network resources. They can reach external Internet endpoints and other containers attached to `cri-collab-net`.
 
@@ -48,16 +91,21 @@ nophi-start --cuda
 
 Startup behavior:
 - Container name:
-  - CPU: `${USER}-NOPHI-dev`
-  - CUDA: `${USER}-NOPHI-dev-cuda`
+  - CPU: `${USER}-NOPHI-${HOSTNAME}`
+  - CUDA: `${USER}-NOPHI-${HOSTNAME}-cuda`
 - Mounts:
   - `${HOME}/NOPHI-home -> /home/${USER}`
     Personal, persistent workspace (auto-created if missing). Use this for cloning repos and development work. Data here persists across container restarts/removals. NEVER store PHI data here.
-  - `/srv/NOPHI-data -> /data`
-    Shared NOPHI data directory (created during server setup). NEVER store PHI data here.
+  - Linux default: `/srv/NOPHI-data -> /data`
+  - macOS default: `${HOME}/NOPHI-data -> /data`
+    Shared NOPHI data directory. NEVER store PHI data here.
+    Override with env var: `NOPHI_SHARED_DIR=/path/to/data`.
   - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
     Used for SSH access to the container user account. The host file is auto-created if missing.
 - SSH port is derived as `40000 + $(id -u)`
+- SSH target:
+  - Linux: `ssh -p <port> ${USER}@$(hostname)`
+  - macOS: `ssh -p <port> ${USER}@localhost` (hostname may not resolve locally)
 
 2. Stop/remove your container.
 
@@ -77,6 +125,18 @@ Prefer CUDA target (falls back to CPU if CUDA is unavailable):
 
 ```bash
 nophi-remove --cuda
+```
+
+3. Validate egress policy from the running container.
+
+```bash
+./test-nophi-egress.sh
+```
+
+Optional container override:
+
+```bash
+./test-nophi-egress.sh --container <container-name>
 ```
 
 ---
@@ -226,12 +286,20 @@ Users added to new groups must log out and back in.
 
 ## Script Reference
 
+- `macos-docker-setup.sh`
+  - macOS 14+ single-user setup for OrbStack or Docker Desktop Linux containers
+  - Configures `~/NOPHI-data`, networks, CPU image build, command install, VM egress filtering, and LaunchAgent persistence
+  - `--uninstall` removes script-managed macOS network settings
 - `build-NOPHI-dev.sh`
   - Builds CPU and CUDA images by default, or selected image(s) with `--cpu` / `--cuda`
 - `start-NOPHI-dev.sh`
   - Starts per-user container on `cri-dev-net` with auto CPU/CUDA selection (`--cpu` / `--cuda` supported)
+  - Shared mount defaults: Linux `/srv/NOPHI-data`, macOS `${HOME}/NOPHI-data` (override with `NOPHI_SHARED_DIR`)
 - `remove-NOPHI-dev.sh`
   - Removes per-user container with auto CPU/CUDA target selection (`--cpu` / `--cuda` supported)
+- `test-nophi-egress.sh`
+  - Runs sequential egress tests from inside a running NOPHI container and reports each result
+  - Defaults to auto-detected current-user container, DNS `172.19.20.19:53` allowed, and blocked probes for `172.19.20.19:443` and `172.19.149.1:443`
 - `create-shared-data-dir.sh`
   - Prepares `/srv/NOPHI-data` and `cri-shared` membership
 - `create-docker-networks.sh`

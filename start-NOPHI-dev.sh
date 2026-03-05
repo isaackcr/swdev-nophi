@@ -48,12 +48,18 @@ done
 USER_NAME="${USER:-$(id -un)}"
 UID_NUM="$(id -u)"
 GID_NUM="$(id -g)"
+OS_NAME="$(uname -s)"
 PORT="$((40000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
 NOPHI_HOME="${HOME}/NOPHI-home"
-SHARED="/srv/NOPHI-data"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  DEFAULT_SHARED="${HOME}/NOPHI-data"
+else
+  DEFAULT_SHARED="/srv/NOPHI-data"
+fi
+SHARED="${NOPHI_SHARED_DIR:-${DEFAULT_SHARED}}"
 DEV_NET_NAME="cri-dev-net"
 DOCKER_GPU_ARGS=()
 RUN_MODE="cpu"
@@ -100,7 +106,7 @@ ensure_authorized_keys() {
 
 ensure_shared_access() {
   if [[ ! -d "${SHARED}" ]]; then
-    fail "Missing ${SHARED}. Run ./create-shared-data-dir.sh once with sudo access."
+    fail "Missing ${SHARED}. Create it first (macOS: ./macos-docker-setup.sh, Linux: ./create-shared-data-dir.sh)."
   fi
 
   if [[ ! -r "${SHARED}" || ! -w "${SHARED}" || ! -x "${SHARED}" ]]; then
@@ -176,24 +182,39 @@ docker rm -f "${USER_NAME}-NOPHI-${HOSTNAME}-cuda" >/dev/null 2>&1 || true
 docker rm -f "${USER_NAME}-NOPHI-dev" >/dev/null 2>&1 || true
 docker rm -f "${USER_NAME}-NOPHI-dev-cuda" >/dev/null 2>&1 || true
 
-docker run -d \
-  --name "${NAME}" \
-  --hostname "${NAME}" \
-  --restart unless-stopped \
-  "${DOCKER_GPU_ARGS[@]}" \
-  --network "${DEV_NET_NAME}" \
-  -p "${PORT}:22" \
-  -e USERNAME="${USER_NAME}" \
-  -e USER_UID="${UID_NUM}" \
-  -e USER_GID="${GID_NUM}" \
-  -v "${NOPHI_HOME}:/home/${USER_NAME}" \
-  -v "${SHARED}:/data" \
-  -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro" \
-  --label owner="${USER_NAME}" \
-  "${IMAGE}" >/dev/null
+DOCKER_RUN_CMD=(
+  docker run -d
+  --name "${NAME}"
+  --hostname "${NAME}"
+  --restart unless-stopped
+)
+
+if [[ "${RUN_MODE}" == "cuda" ]]; then
+  DOCKER_RUN_CMD+=("${DOCKER_GPU_ARGS[@]}")
+fi
+
+DOCKER_RUN_CMD+=(
+  --network "${DEV_NET_NAME}"
+  -p "${PORT}:22"
+  -e USERNAME="${USER_NAME}"
+  -e USER_UID="${UID_NUM}"
+  -e USER_GID="${GID_NUM}"
+  -v "${NOPHI_HOME}:/home/${USER_NAME}"
+  -v "${SHARED}:/data"
+  -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
+  --label owner="${USER_NAME}"
+  "${IMAGE}"
+)
+
+"${DOCKER_RUN_CMD[@]}" >/dev/null
 
 echo "Container started: ${NAME}"
-echo "SSH with: ssh -p ${PORT} ${USER_NAME}@$(hostname)"
+if [[ "${OS_NAME}" == "Darwin" ]]; then
+  echo "SSH with: ssh -p ${PORT} ${USER_NAME}@localhost"
+  echo "Note: local hostname may not resolve on macOS; use localhost for this connection."
+else
+  echo "SSH with: ssh -p ${PORT} ${USER_NAME}@$(hostname)"
+fi
 if [[ "${REQUEST_MODE}" == "cuda" && "${RUN_MODE}" != "cuda" ]]; then
   echo "CUDA request was treated as a no-op on this host; CPU container was started."
 fi
