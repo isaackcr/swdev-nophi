@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-RUN mkdir -p /var/run/sshd /workspace /data
+RUN mkdir -p /var/run/sshd /srv/NOPHI-shared
 EXPOSE 22
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
