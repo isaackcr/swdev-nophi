@@ -68,7 +68,7 @@ Assumptions:
 - All of the installation steps at the bottom of this document were completed by an admin already.
 - `nophi-start` and `nophi-remove` were installed by an admin and are on your `PATH`.
 - Docker network `cri-dev-net` was created during server setup.
-- Your public key is in `${HOME}/.ssh/authorized_keys` for SSH access (the file is auto-created if missing, but you still need to add a key).
+- Your public key is in `${HOME}/.ssh/authorized_keys` for SSH access (if `${HOME}/.ssh` is missing, `nophi-start` creates it as `0700`; if the file is missing, it creates an empty `0600` file, and you still need to add a key).
 
 1. Start your container.
 
@@ -104,7 +104,7 @@ Startup behavior:
     Shared NOPHI data directory. NEVER store PHI data here.
     Override with env var: `NOPHI_SHARED_DIR=/path/to/shared`.
   - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
-    Used for SSH access to the container user account. The host file is auto-created if missing.
+    Used for SSH access to the container user account. If `${HOME}/.ssh` is missing, `nophi-start` creates it as `0700`. If the host file is missing, `nophi-start` creates an empty `0600` file and tells you to copy in a public key before connecting.
 - SSH port is derived as `40000 + $(id -u)`
 - SSH target:
   - Linux: `ssh -p <port> ${USER}@$(hostname)`

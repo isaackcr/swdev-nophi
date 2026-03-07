@@ -56,6 +56,18 @@ EOF
 fi
 chown "${USER_UID}:${USER_GID}" "${PROFILE}"
 
+# Ensure user-level tools installed into ~/.local/bin are on PATH
+if ! grep -q 'NOPHI local bin PATH' "${PROFILE}"; then
+  cat >> "${PROFILE}" <<'EOF'
+
+# NOPHI local bin PATH
+if [ -d "${HOME}/.local/bin" ]; then
+  export PATH="${HOME}/.local/bin:${PATH}"
+fi
+EOF
+fi
+chown "${USER_UID}:${USER_GID}" "${PROFILE}"
+
 # TERM compatibility for remote clients
 if ! grep -q 'TERM compatibility for remote clients' "${BASHRC}"; then
   cat >> "${BASHRC}" <<'EOF'

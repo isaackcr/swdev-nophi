@@ -8,7 +8,9 @@ RUN apt-get update && apt-get install -y \
     build-essential ca-certificates python3 python3-pip python3-venv \
  && rm -rf /var/lib/apt/lists/*
 
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+ && install -m 0755 /root/.local/bin/uv /usr/local/bin/uv \
+ && if [ -x /root/.local/bin/uvx ]; then install -m 0755 /root/.local/bin/uvx /usr/local/bin/uvx; fi
 
 RUN mkdir -p /var/run/sshd /srv/NOPHI-shared
 EXPOSE 22
