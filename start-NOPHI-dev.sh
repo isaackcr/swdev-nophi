@@ -63,6 +63,7 @@ SHARED="${NOPHI_SHARED_DIR:-${DEFAULT_SHARED}}"
 DEV_NET_NAME="cri-dev-net"
 DOCKER_GPU_ARGS=()
 RUN_MODE="cpu"
+AUTHORIZED_KEYS_EMPTY=0
 
 fail() {
   echo "Error: $*" >&2
@@ -88,19 +89,27 @@ ensure_docker_access() {
 ensure_authorized_keys() {
   local ssh_dir="${HOME}/.ssh"
   local auth_keys="${ssh_dir}/authorized_keys"
+  local owner_uid="${SUDO_UID:-${UID_NUM}}"
+  local owner_gid="${SUDO_GID:-${GID_NUM}}"
 
   mkdir -p "${ssh_dir}" || fail "Unable to create ${ssh_dir}."
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown "${owner_uid}:${owner_gid}" "${ssh_dir}" || fail "Unable to set ownership on ${ssh_dir}."
+  fi
   chmod 700 "${ssh_dir}" || fail "Unable to set permissions on ${ssh_dir}."
 
   if [[ ! -f "${auth_keys}" ]]; then
-    touch "${auth_keys}" || fail "Unable to create ${auth_keys}."
+    (umask 077 && : > "${auth_keys}") || fail "Unable to create ${auth_keys}."
     echo "Created ${auth_keys}."
   fi
 
+  if [[ "${EUID}" -eq 0 ]]; then
+    chown "${owner_uid}:${owner_gid}" "${auth_keys}" || fail "Unable to set ownership on ${auth_keys}."
+  fi
   chmod 600 "${auth_keys}" || fail "Unable to set permissions on ${auth_keys}."
 
   if [[ ! -s "${auth_keys}" ]]; then
-    echo "Warning: ${auth_keys} is empty. Add your public SSH key before connecting to the container." >&2
+    AUTHORIZED_KEYS_EMPTY=1
   fi
 }
 
@@ -209,6 +218,9 @@ DOCKER_RUN_CMD+=(
 "${DOCKER_RUN_CMD[@]}" >/dev/null
 
 echo "Container started: ${NAME}"
+if (( AUTHORIZED_KEYS_EMPTY )); then
+  echo "Populate ${HOME}/.ssh/authorized_keys with a public key from the server you will SSH from before connecting."
+fi
 if [[ "${OS_NAME}" == "Darwin" ]]; then
   echo "SSH with: ssh -p ${PORT} ${USER_NAME}@localhost"
   echo "Note: local hostname may not resolve on macOS; use localhost for this connection."
