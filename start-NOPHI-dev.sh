@@ -94,9 +94,9 @@ IMAGE=""
 IMAGE_BUILD_HINT=""
 NOPHI_HOME="${USER_HOME}/NOPHI-home"
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  DEFAULT_SHARED="${USER_HOME}/NOPHI-data"
+  DEFAULT_SHARED="${USER_HOME}/NOPHI-shared"
 else
-  DEFAULT_SHARED="/srv/NOPHI-data"
+  DEFAULT_SHARED="/srv/NOPHI-shared"
 fi
 SHARED="${NOPHI_SHARED_DIR:-${DEFAULT_SHARED}}"
 DEV_NET_NAME="cri-dev-net"
@@ -214,6 +214,7 @@ if (( PORT > 65535 )); then
 fi
 
 mkdir -p "${NOPHI_HOME}"
+mkdir -p "${NOPHI_TMP}"
 
 ensure_docker_access
 resolve_mode
@@ -246,8 +247,9 @@ DOCKER_RUN_CMD+=(
   -e USER_UID="${UID_NUM}"
   -e USER_GID="${GID_NUM}"
   -v "${NOPHI_HOME}:/home/${USER_NAME}"
-  -v "${SHARED}:/data"
-  -v "${USER_HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
+  -v "${NOPHI_TMP}:/tmp"
+  -v "${SHARED}:/srv/NOPHI-shared"
+  -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
   --label owner="${USER_NAME}"
   "${IMAGE}"
 )

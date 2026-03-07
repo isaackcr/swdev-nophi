@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SHARED_DIR="/srv/NOPHI-data"
+SHARED_DIR="/srv/NOPHI-shared"
 SHARED_GROUP="cri-shared"
 TARGET_USER="${USER}"
 GROUP_CREATED=false

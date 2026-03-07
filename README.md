@@ -18,7 +18,7 @@ Use this flow on macOS instead of the Linux server-prep steps below.
 ```
 
 What it does:
-- Creates `~/NOPHI-data` (or custom `--shared-dir`) for `/data` mount
+- Creates `~/NOPHI-shared` (or custom `--shared-dir`) for `/srv/NOPHI-shared` mount
 - Ensures `cri-dev-net` and `cri-collab-net` Docker networks exist
 - Builds CPU image only (`nophi-dev:ubuntu24.04`)
 - Installs `nophi-start` and `nophi-remove` into `~/.local/bin`
@@ -55,8 +55,9 @@ The purpose of this project is to provide a sandboxed container for software dev
 
 **NEVER** place PHI in either host-mounted path or copy it to your container:
 - `${HOME}/NOPHI-home` (your personal persistent workspace, created for you)
-- Linux: `/srv/NOPHI-data` (shared data directory, created for you)
-- macOS: `${HOME}/NOPHI-data` (single-user shared data directory, created by `./macos-docker-setup.sh`)
+- `${HOME}/NOPHI-tmp` (host-backed `/tmp`, auto-created for you)
+- Linux: `/srv/NOPHI-shared` (shared data directory, created for you)
+- macOS: `${HOME}/NOPHI-shared` (single-user shared data directory, created by `./macos-docker-setup.sh`)
 
 Network boundary: these containers cannot access internal hosts or internal network resources. They can reach external Internet endpoints and other containers attached to `cri-collab-net`.
 
@@ -96,10 +97,12 @@ Startup behavior:
 - Mounts:
   - `${HOME}/NOPHI-home -> /home/${USER}`
     Personal, persistent workspace (auto-created if missing). Use this for cloning repos and development work. Data here persists across container restarts/removals. NEVER store PHI data here.
-  - Linux default: `/srv/NOPHI-data -> /data`
-  - macOS default: `${HOME}/NOPHI-data -> /data`
+  - `${HOME}/NOPHI-tmp -> /tmp`
+    Host-backed scratch space (auto-created if missing). Use this only when you need `/tmp` contents to persist across container restarts/removals. NEVER store PHI data here.
+  - Linux default: `/srv/NOPHI-shared -> /srv/NOPHI-shared`
+  - macOS default: `${HOME}/NOPHI-shared -> /srv/NOPHI-shared`
     Shared NOPHI data directory. NEVER store PHI data here.
-    Override with env var: `NOPHI_SHARED_DIR=/path/to/data`.
+    Override with env var: `NOPHI_SHARED_DIR=/path/to/shared`.
   - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
     Used for SSH access to the container user account. If `${HOME}/.ssh` is missing, `nophi-start` creates it as `0700`. If the host file is missing, `nophi-start` creates an empty `0600` file and tells you to copy in a public key before connecting.
 - SSH port is derived as `40000 + $(id -u)`
@@ -165,7 +168,7 @@ cd NOPHI-dev
 
 What this does:
 - Ensures Linux group `cri-shared` exists
-- Ensures `/srv/NOPHI-data` exists
+- Ensures `/srv/NOPHI-shared` exists
 - Applies group ownership/permissions (`2775`)
 - Adds your user to `cri-shared` if needed
 
@@ -288,20 +291,20 @@ Users added to new groups must log out and back in.
 
 - `macos-docker-setup.sh`
   - macOS 14+ single-user setup for OrbStack or Docker Desktop Linux containers
-  - Configures `~/NOPHI-data`, networks, CPU image build, command install, VM egress filtering, and LaunchAgent persistence
+  - Configures `~/NOPHI-shared`, networks, CPU image build, command install, VM egress filtering, and LaunchAgent persistence
   - `--uninstall` removes script-managed macOS network settings
 - `build-NOPHI-dev.sh`
   - Builds CPU and CUDA images by default, or selected image(s) with `--cpu` / `--cuda`
 - `start-NOPHI-dev.sh`
   - Starts per-user container on `cri-dev-net` with auto CPU/CUDA selection (`--cpu` / `--cuda` supported)
-  - Shared mount defaults: Linux `/srv/NOPHI-data`, macOS `${HOME}/NOPHI-data` (override with `NOPHI_SHARED_DIR`)
+  - Shared mount defaults: Linux `/srv/NOPHI-shared`, macOS `${HOME}/NOPHI-shared` (override with `NOPHI_SHARED_DIR`)
 - `remove-NOPHI-dev.sh`
   - Removes per-user container with auto CPU/CUDA target selection (`--cpu` / `--cuda` supported)
 - `test-nophi-egress.sh`
   - Runs sequential egress tests from inside a running NOPHI container and reports each result
   - Defaults to auto-detected current-user container, DNS `172.19.20.19:53` allowed, and blocked probes for `172.19.20.19:443` and `172.19.149.1:443`
 - `create-shared-data-dir.sh`
-  - Prepares `/srv/NOPHI-data` and `cri-shared` membership
+  - Prepares `/srv/NOPHI-shared` and `cri-shared` membership
 - `create-docker-networks.sh`
   - Ensures Docker bridge networks with fixed `192.168.x.x` subnets
 - `configure-docker-egress-filtering.sh`

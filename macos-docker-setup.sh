@@ -6,7 +6,7 @@ usage() {
 Usage: ./macos-docker-setup.sh [options]
 
 Sets up NOPHI Docker workflows for macOS 14+ (OrbStack or Docker Desktop Linux containers), single-user mode:
-  - prepares ~/NOPHI-data for the current user
+  - prepares ~/NOPHI-shared for the current user
   - ensures Docker networks exist (cri-dev-net + cri-collab-net)
   - builds CPU image only (no CUDA path on macOS)
   - installs nophi-start and nophi-remove into ~/.local/bin by default
@@ -20,7 +20,7 @@ Options:
   --block-subnets-csv CSV     Comma-separated blocked subnets (internal helper option)
   --helper-image TAG          Helper image for VM firewall apply (default: nophi-egress-helper:ubuntu24.04)
   --install-prefix DIR        Command install prefix (default: ~/.local/bin)
-  --shared-dir DIR            Shared host directory mounted to /data (default: ~/NOPHI-data)
+  --shared-dir DIR            Shared host directory mounted to /srv/NOPHI-shared (default: ~/NOPHI-shared)
   --no-build                  Skip CPU image build
   --no-install-commands       Skip installing nophi-start / nophi-remove
   --no-launch-agent           Skip installing LaunchAgent persistence
@@ -35,7 +35,7 @@ DNS_SERVER="172.19.20.19"
 BLOCK_SUBNETS=("172.19.20.0/23" "172.19.149.0/26")
 FIREWALL_HELPER_IMAGE="nophi-egress-helper:ubuntu24.04"
 INSTALL_PREFIX="${HOME}/.local/bin"
-SHARED_DIR="${HOME}/NOPHI-data"
+SHARED_DIR="${HOME}/NOPHI-shared"
 
 RUN_EGRESS_ONLY=false
 BUILD_CPU_IMAGE=true

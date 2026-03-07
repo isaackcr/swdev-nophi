@@ -12,7 +12,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
  && install -m 0755 /root/.local/bin/uv /usr/local/bin/uv \
  && if [ -x /root/.local/bin/uvx ]; then install -m 0755 /root/.local/bin/uvx /usr/local/bin/uvx; fi
 
-RUN mkdir -p /var/run/sshd /workspace /data
+RUN mkdir -p /var/run/sshd /srv/NOPHI-shared
 EXPOSE 22
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
