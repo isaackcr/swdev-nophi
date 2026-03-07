@@ -45,17 +45,56 @@ while (($# > 0)); do
   esac
 done
 
-USER_NAME="${USER:-$(id -un)}"
-UID_NUM="$(id -u)"
-GID_NUM="$(id -g)"
+resolve_effective_user() {
+  if [[ "${EUID}" -eq 0 && -n "${SUDO_USER:-}" && "${SUDO_USER}" != "root" ]]; then
+    echo "${SUDO_USER}"
+    return
+  fi
+
+  if [[ -n "${USER:-}" ]]; then
+    echo "${USER}"
+    return
+  fi
+
+  id -un
+}
+
+resolve_user_home() {
+  local user_name="$1"
+
+  if command -v getent >/dev/null 2>&1; then
+    getent passwd "${user_name}" | cut -d: -f6
+    return
+  fi
+
+  if command -v dscl >/dev/null 2>&1; then
+    dscl . -read "/Users/${user_name}" NFSHomeDirectory 2>/dev/null | awk '{print $2}'
+    return
+  fi
+
+  printf '%s\n' "${HOME}"
+}
+
+USER_NAME="$(resolve_effective_user)"
+if [[ "${EUID}" -eq 0 && -n "${SUDO_UID:-}" && "${SUDO_USER:-}" == "${USER_NAME}" ]]; then
+  UID_NUM="${SUDO_UID}"
+else
+  UID_NUM="$(id -u "${USER_NAME}")"
+fi
+if [[ "${EUID}" -eq 0 && -n "${SUDO_GID:-}" && "${SUDO_USER:-}" == "${USER_NAME}" ]]; then
+  GID_NUM="${SUDO_GID}"
+else
+  GID_NUM="$(id -g "${USER_NAME}")"
+fi
+USER_HOME="$(resolve_user_home "${USER_NAME}")"
 OS_NAME="$(uname -s)"
 PORT="$((40000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
-NOPHI_HOME="${HOME}/NOPHI-home"
+NOPHI_HOME="${USER_HOME}/NOPHI-home"
 if [[ "$(uname -s)" == "Darwin" ]]; then
-  DEFAULT_SHARED="${HOME}/NOPHI-data"
+  DEFAULT_SHARED="${USER_HOME}/NOPHI-data"
 else
   DEFAULT_SHARED="/srv/NOPHI-data"
 fi
@@ -87,14 +126,12 @@ ensure_docker_access() {
 }
 
 ensure_authorized_keys() {
-  local ssh_dir="${HOME}/.ssh"
+  local ssh_dir="${USER_HOME}/.ssh"
   local auth_keys="${ssh_dir}/authorized_keys"
-  local owner_uid="${SUDO_UID:-${UID_NUM}}"
-  local owner_gid="${SUDO_GID:-${GID_NUM}}"
 
   mkdir -p "${ssh_dir}" || fail "Unable to create ${ssh_dir}."
   if [[ "${EUID}" -eq 0 ]]; then
-    chown "${owner_uid}:${owner_gid}" "${ssh_dir}" || fail "Unable to set ownership on ${ssh_dir}."
+    chown "${UID_NUM}:${GID_NUM}" "${ssh_dir}" || fail "Unable to set ownership on ${ssh_dir}."
   fi
   chmod 700 "${ssh_dir}" || fail "Unable to set permissions on ${ssh_dir}."
 
@@ -104,7 +141,7 @@ ensure_authorized_keys() {
   fi
 
   if [[ "${EUID}" -eq 0 ]]; then
-    chown "${owner_uid}:${owner_gid}" "${auth_keys}" || fail "Unable to set ownership on ${auth_keys}."
+    chown "${UID_NUM}:${GID_NUM}" "${auth_keys}" || fail "Unable to set ownership on ${auth_keys}."
   fi
   chmod 600 "${auth_keys}" || fail "Unable to set permissions on ${auth_keys}."
 
@@ -210,7 +247,7 @@ DOCKER_RUN_CMD+=(
   -e USER_GID="${GID_NUM}"
   -v "${NOPHI_HOME}:/home/${USER_NAME}"
   -v "${SHARED}:/data"
-  -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
+  -v "${USER_HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
   --label owner="${USER_NAME}"
   "${IMAGE}"
 )
@@ -219,7 +256,7 @@ DOCKER_RUN_CMD+=(
 
 echo "Container started: ${NAME}"
 if (( AUTHORIZED_KEYS_EMPTY )); then
-  echo "Populate ${HOME}/.ssh/authorized_keys with a public key from the server you will SSH from before connecting."
+  echo "Populate ${USER_HOME}/.ssh/authorized_keys with a public key from the server you will SSH from before connecting."
 fi
 if [[ "${OS_NAME}" == "Darwin" ]]; then
   echo "SSH with: ssh -p ${PORT} ${USER_NAME}@localhost"
