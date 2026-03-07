@@ -92,6 +92,7 @@ PORT="$((40000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
+NOPHI_TMP="${HOME}/NOPHI-tmp"
 NOPHI_HOME="${USER_HOME}/NOPHI-home"
 if [[ "$(uname -s)" == "Darwin" ]]; then
   DEFAULT_SHARED="${USER_HOME}/NOPHI-shared"
