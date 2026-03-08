@@ -92,8 +92,7 @@ PORT="$((40000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
-NOPHI_TMP="${HOME}/NOPHI-tmp"
-NOPHI_HOME="${USER_HOME}/NOPHI-home"
+NOPHI_HOME="${USER_HOME}/NOPHI-home-${HOSTNAME}"
 if [[ "$(uname -s)" == "Darwin" ]]; then
   DEFAULT_SHARED="${USER_HOME}/NOPHI-shared"
 else
@@ -215,7 +214,6 @@ if (( PORT > 65535 )); then
 fi
 
 mkdir -p "${NOPHI_HOME}"
-mkdir -p "${NOPHI_TMP}"
 
 ensure_docker_access
 resolve_mode
@@ -248,7 +246,6 @@ DOCKER_RUN_CMD+=(
   -e USER_UID="${UID_NUM}"
   -e USER_GID="${GID_NUM}"
   -v "${NOPHI_HOME}:/home/${USER_NAME}"
-  -v "${NOPHI_TMP}:/tmp"
   -v "${SHARED}:/srv/NOPHI-shared"
   -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"
   --label owner="${USER_NAME}"
