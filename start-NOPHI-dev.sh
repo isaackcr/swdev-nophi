@@ -92,11 +92,12 @@ PORT="$((40000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
-NOPHI_HOME="${USER_HOME}/NOPHI-home-${HOSTNAME}"
 if [[ "$(uname -s)" == "Darwin" ]]; then
   DEFAULT_SHARED="${USER_HOME}/NOPHI-shared"
+  NOPHI_HOME="${USER_HOME}/NOPHI-home-${HOSTNAME}"
 else
   DEFAULT_SHARED="/srv/NOPHI-shared"
+  NOPHI_HOME="${USER_HOME}/NOPHI-home-${HOSTNAME}"
 fi
 SHARED="${NOPHI_SHARED_DIR:-${DEFAULT_SHARED}}"
 DEV_NET_NAME="cri-dev-net"
