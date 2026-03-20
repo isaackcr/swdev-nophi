@@ -7,48 +7,6 @@ Docker-based development environment for NOPHI with:
 - Dedicated Docker bridge network setup
 - Docker network egress filtering via `iptables`, prevents access to internal networks but Internet is allowed.
 
-## macOS 14+ (Single User, OrbStack or Docker Desktop Linux Containers)
-
-Use this flow on macOS instead of the Linux server-prep steps below.
-
-1. Run setup:
-
-```bash
-./macos-docker-setup.sh
-```
-
-What it does:
-- Creates `~/NOPHI-shared` (or custom `--shared-dir`) for `/srv/NOPHI-shared` mount
-- Ensures `cri-dev-net` and `cri-collab-net` Docker networks exist
-- Builds CPU image only (`nophi-dev:ubuntu24.04`)
-- Installs `nophi-start` and `nophi-remove` into `~/.local/bin`
-- Applies egress filtering inside the macOS Docker VM for `cri-dev-net`
-- Installs a LaunchAgent that reapplies egress rules on Docker socket changes
-
-2. Start/remove your dev container:
-
-```bash
-nophi-start
-nophi-remove
-```
-
-3. Validate egress policy from the running container:
-
-```bash
-./test-nophi-egress.sh
-```
-
-4. Uninstall macOS network configuration created by setup:
-
-```bash
-./macos-docker-setup.sh --uninstall
-```
-
-Uninstall removes:
-- LaunchAgent `com.nophi.docker-egress`
-- Script-managed `DOCKER-USER` egress rules/chains (`DNET-*`) in the macOS Docker VM
-- Docker networks `cri-dev-net` and `cri-collab-net` (fails if still in use)
-
 ## Getting Started as a Developer (After server has already been set up)
 
 The purpose of this project is to provide a sandboxed container for software development with AI coding tools that must not access PHI.
@@ -286,6 +244,48 @@ sudo usermod -aG docker,cri-shared <username>
 ```
 
 Users added to new groups must log out and back in.
+
+## macOS 14+ (Single User, OrbStack or Docker Desktop Linux Containers)
+
+Use this flow on macOS instead of the Linux server-prep steps below.
+
+1. Run setup:
+
+```bash
+./macos-docker-setup.sh
+```
+
+What it does:
+- Creates `~/NOPHI-shared` (or custom `--shared-dir`) for `/srv/NOPHI-shared` mount
+- Ensures `cri-dev-net` and `cri-collab-net` Docker networks exist
+- Builds CPU image only (`nophi-dev:ubuntu24.04`)
+- Installs `nophi-start` and `nophi-remove` into `~/.local/bin`
+- Applies egress filtering inside the macOS Docker VM for `cri-dev-net`
+- Installs a LaunchAgent that reapplies egress rules on Docker socket changes
+
+2. Start/remove your dev container:
+
+```bash
+nophi-start
+nophi-remove
+```
+
+3. Validate egress policy from the running container:
+
+```bash
+./test-nophi-egress.sh
+```
+
+4. Uninstall macOS network configuration created by setup:
+
+```bash
+./macos-docker-setup.sh --uninstall
+```
+
+Uninstall removes:
+- LaunchAgent `com.nophi.docker-egress`
+- Script-managed `DOCKER-USER` egress rules/chains (`DNET-*`) in the macOS Docker VM
+- Docker networks `cri-dev-net` and `cri-collab-net` (fails if still in use)
 
 ## Script Reference
 
