@@ -13,7 +13,6 @@ The purpose of this project is to provide a sandboxed container for software dev
 
 **NEVER** place PHI in either host-mounted path or copy it to your container:
 - `${HOME}/NOPHI-home` (your personal persistent workspace, created for you)
-- `${HOME}/NOPHI-tmp` (host-backed `/tmp`, auto-created for you)
 - Linux: `/srv/NOPHI-shared` (shared data directory, created for you)
 - macOS: `${HOME}/NOPHI-shared` (single-user shared data directory, created by `./macos-docker-setup.sh`)
 
@@ -55,11 +54,10 @@ Startup behavior:
 - Mounts:
   - `${HOME}/NOPHI-home -> /home/${USER}`
     Personal, persistent workspace (auto-created if missing). Use this for cloning repos and development work. Data here persists across container restarts/removals. NEVER store PHI data here.
-  - `${HOME}/NOPHI-tmp -> /tmp`
-    Host-backed scratch space (auto-created if missing). Use this only when you need `/tmp` contents to persist across container restarts/removals. NEVER store PHI data here.
   - Linux default: `/srv/NOPHI-shared -> /srv/NOPHI-shared`
   - macOS default: `${HOME}/NOPHI-shared -> /srv/NOPHI-shared`
     Shared NOPHI data directory. NEVER store PHI data here.
+    On Linux, `nophi-start` passes the shared directory GID into the container so members of `cri-shared` keep write access to the bind mount.
     Override with env var: `NOPHI_SHARED_DIR=/path/to/shared`.
   - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
     Used for SSH access to the container user account. If `${HOME}/.ssh` is missing, `nophi-start` creates it as `0700`. If the host file is missing, `nophi-start` creates an empty `0600` file and tells you to copy in a public key before connecting.
@@ -205,6 +203,8 @@ Build CUDA image only (if the server has NVIDIA GPUs and developers will use CUD
 ```
 
 On non-GPU servers, CUDA build paths are treated as no-ops and skipped.
+
+Rebuild after changing image-baked files such as `Dockerfile` or `entrypoint.sh`.
 
 Custom tag (single-image build only):
 

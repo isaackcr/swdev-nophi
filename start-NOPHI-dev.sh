@@ -104,10 +104,22 @@ DEV_NET_NAME="cri-dev-net"
 DOCKER_GPU_ARGS=()
 RUN_MODE="cpu"
 AUTHORIZED_KEYS_EMPTY=0
+SHARED_GID=""
 
 fail() {
   echo "Error: $*" >&2
   exit 1
+}
+
+resolve_path_gid() {
+  local target_path="$1"
+
+  if [[ "${OS_NAME}" == "Darwin" ]]; then
+    stat -f '%g' "${target_path}"
+    return
+  fi
+
+  stat -c '%g' "${target_path}"
 }
 
 ensure_docker_access() {
@@ -221,6 +233,10 @@ resolve_mode
 configure_mode "${RUN_MODE}"
 ensure_authorized_keys
 ensure_shared_access
+SHARED_GID="$(resolve_path_gid "${SHARED}")"
+if [[ ! "${SHARED_GID}" =~ ^[0-9]+$ ]]; then
+  fail "Unable to determine group ID for ${SHARED}."
+fi
 ensure_image_exists
 ensure_dev_network
 
@@ -246,6 +262,7 @@ DOCKER_RUN_CMD+=(
   -e USERNAME="${USER_NAME}"
   -e USER_UID="${UID_NUM}"
   -e USER_GID="${GID_NUM}"
+  -e SHARED_GID="${SHARED_GID}"
   -v "${NOPHI_HOME}:/home/${USER_NAME}"
   -v "${SHARED}:/srv/NOPHI-shared"
   -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"

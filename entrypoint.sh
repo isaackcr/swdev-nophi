@@ -4,6 +4,7 @@ set -euo pipefail
 USERNAME="${USERNAME:-devuser}"
 USER_UID="${USER_UID:-1000}"
 USER_GID="${USER_GID:-1000}"
+SHARED_GID="${SHARED_GID:-}"
 
 # Create group if the numeric GID does not already exist
 if ! getent group "${USER_GID}" >/dev/null 2>&1; then
@@ -16,6 +17,23 @@ if ! id -u "${USERNAME}" >/dev/null 2>&1; then
   usermod -aG sudo "${USERNAME}"
   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/${USERNAME}"
   chmod 0440 "/etc/sudoers.d/${USERNAME}"
+fi
+
+if [[ -n "${SHARED_GID}" ]]; then
+  if [[ ! "${SHARED_GID}" =~ ^[0-9]+$ ]]; then
+    echo "Invalid SHARED_GID: ${SHARED_GID}" >&2
+    exit 1
+  fi
+
+  SHARED_GROUP_NAME="$(getent group "${SHARED_GID}" | cut -d: -f1)"
+  if [[ -z "${SHARED_GROUP_NAME}" ]]; then
+    SHARED_GROUP_NAME="nophi-shared-${SHARED_GID}"
+    groupadd -g "${SHARED_GID}" "${SHARED_GROUP_NAME}"
+  fi
+
+  if [[ -n "${SHARED_GROUP_NAME}" ]]; then
+    usermod -aG "${SHARED_GROUP_NAME}" "${USERNAME}"
+  fi
 fi
 
 HOME_DIR="/home/${USERNAME}"
