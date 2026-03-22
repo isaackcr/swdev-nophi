@@ -515,7 +515,63 @@ fi
 
 install_commands_locally() {
   mkdir -p "${INSTALL_PREFIX}"
-  ln -sf "${SCRIPT_DIR}/start-NOPHI-dev.sh" "${INSTALL_PREFIX}/nophi-start"
+  rm -f "${INSTALL_PREFIX}/nophi-start"
+
+  cat > "${INSTALL_PREFIX}/nophi-start" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z "\${TZ:-}" ]]; then
+  resolved_tz=""
+  localtime_target=""
+
+  if command -v realpath >/dev/null 2>&1; then
+    localtime_target="\$(realpath /etc/localtime 2>/dev/null || true)"
+  fi
+
+  if [[ -z "\${localtime_target}" ]] && command -v readlink >/dev/null 2>&1; then
+    localtime_target="\$(readlink /etc/localtime 2>/dev/null || true)"
+  fi
+
+  case "\${localtime_target}" in
+    /usr/share/zoneinfo/*)
+      resolved_tz="\${localtime_target#/usr/share/zoneinfo/}"
+      ;;
+    /private/usr/share/zoneinfo/*)
+      resolved_tz="\${localtime_target#/private/usr/share/zoneinfo/}"
+      ;;
+    /var/db/timezone/zoneinfo/*)
+      resolved_tz="\${localtime_target#/var/db/timezone/zoneinfo/}"
+      ;;
+    /private/var/db/timezone/zoneinfo/*)
+      resolved_tz="\${localtime_target#/private/var/db/timezone/zoneinfo/}"
+      ;;
+  esac
+
+  if [[ -z "\${resolved_tz}" && -L /var/db/timezone/localtime ]]; then
+    localtime_target="\$(readlink /var/db/timezone/localtime 2>/dev/null || true)"
+    case "\${localtime_target}" in
+      /var/db/timezone/zoneinfo/*)
+        resolved_tz="\${localtime_target#/var/db/timezone/zoneinfo/}"
+        ;;
+      /private/var/db/timezone/zoneinfo/*)
+        resolved_tz="\${localtime_target#/private/var/db/timezone/zoneinfo/}"
+        ;;
+    esac
+  fi
+
+  if [[ -z "\${resolved_tz}" ]] && command -v systemsetup >/dev/null 2>&1; then
+    resolved_tz="\$(systemsetup -gettimezone 2>/dev/null | awk -F': ' 'NF > 1 {print \$2}')"
+  fi
+
+  if [[ -n "\${resolved_tz}" ]]; then
+    export TZ="\${resolved_tz}"
+  fi
+fi
+
+exec "${SCRIPT_DIR}/start-NOPHI-dev.sh" "\$@"
+EOF
+  chmod 755 "${INSTALL_PREFIX}/nophi-start"
   ln -sf "${SCRIPT_DIR}/remove-NOPHI-dev.sh" "${INSTALL_PREFIX}/nophi-remove"
   echo "Installed command links:"
   echo "  ${INSTALL_PREFIX}/nophi-start"
