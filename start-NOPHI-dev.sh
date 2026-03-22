@@ -102,12 +102,92 @@ fi
 SHARED="${NOPHI_SHARED_DIR:-${DEFAULT_SHARED}}"
 DEV_NET_NAME="cri-dev-net"
 DOCKER_GPU_ARGS=()
+TIMEZONE_ARGS=()
 RUN_MODE="cpu"
 AUTHORIZED_KEYS_EMPTY=0
 
 fail() {
   echo "Error: $*" >&2
   exit 1
+}
+
+resolve_host_timezone() {
+  local tz_value="${TZ:-}"
+  local localtime_target=""
+
+  if [[ -n "${tz_value}" ]]; then
+    printf '%s\n' "${tz_value}"
+    return
+  fi
+
+  if [[ -r /etc/timezone ]]; then
+    tr -d '[:space:]' < /etc/timezone
+    return
+  fi
+
+  if command -v timedatectl >/dev/null 2>&1; then
+    tz_value="$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+    if [[ -n "${tz_value}" ]]; then
+      printf '%s\n' "${tz_value}"
+      return
+    fi
+  fi
+
+  if command -v realpath >/dev/null 2>&1; then
+    localtime_target="$(realpath /etc/localtime 2>/dev/null || true)"
+  fi
+
+  if [[ -z "${localtime_target}" ]] && command -v readlink >/dev/null 2>&1; then
+    localtime_target="$(readlink /etc/localtime 2>/dev/null || true)"
+    case "${localtime_target}" in
+      ../*)
+        localtime_target="$(cd /etc && cd "$(dirname "${localtime_target}")" && pwd -P)/$(basename "${localtime_target}")"
+        ;;
+      /*)
+        ;;
+      *)
+        localtime_target=""
+        ;;
+    esac
+  fi
+
+  case "${localtime_target}" in
+    /usr/share/zoneinfo/*)
+      printf '%s\n' "${localtime_target#/usr/share/zoneinfo/}"
+      return
+      ;;
+    /var/db/timezone/zoneinfo/*)
+      printf '%s\n' "${localtime_target#/var/db/timezone/zoneinfo/}"
+      return
+      ;;
+  esac
+
+  if [[ "${OS_NAME}" == "Darwin" ]] && command -v systemsetup >/dev/null 2>&1; then
+    tz_value="$(systemsetup -gettimezone 2>/dev/null | awk -F': ' 'NF > 1 {print $2}')"
+    if [[ -n "${tz_value}" ]]; then
+      printf '%s\n' "${tz_value}"
+      return
+    fi
+  fi
+
+  printf '%s\n' "UTC"
+}
+
+configure_timezone_args() {
+  local host_timezone=""
+
+  host_timezone="$(resolve_host_timezone)"
+  if [[ -n "${host_timezone}" ]]; then
+    TIMEZONE_ARGS+=( -e TZ="${host_timezone}" )
+  fi
+
+  if [[ "${OS_NAME}" != "Darwin" && -e /etc/localtime ]]; then
+    TIMEZONE_ARGS+=( -v /etc/localtime:/etc/localtime:ro )
+  fi
+
+  if [[ "${OS_NAME}" != "Darwin" && -r /etc/timezone ]]; then
+    TIMEZONE_ARGS+=( -v /etc/timezone:/etc/timezone:ro )
+  fi
 }
 
 ensure_docker_access() {
@@ -219,6 +299,7 @@ mkdir -p "${NOPHI_HOME}"
 ensure_docker_access
 resolve_mode
 configure_mode "${RUN_MODE}"
+configure_timezone_args
 ensure_authorized_keys
 ensure_shared_access
 ensure_image_exists
@@ -246,6 +327,7 @@ DOCKER_RUN_CMD+=(
   -e USERNAME="${USER_NAME}"
   -e USER_UID="${UID_NUM}"
   -e USER_GID="${GID_NUM}"
+  "${TIMEZONE_ARGS[@]}"
   -v "${NOPHI_HOME}:/home/${USER_NAME}"
   -v "${SHARED}:/srv/NOPHI-shared"
   -v "${HOME}/.ssh/authorized_keys:/home/${USER_NAME}/.ssh/authorized_keys:ro"

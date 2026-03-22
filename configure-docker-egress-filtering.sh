@@ -3,10 +3,11 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./configure-docker-egress-filtering.sh [--network-name NAME] [--dns-server IP] [--block-subnet CIDR]... [--no-install] [--no-save]
+Usage: ./configure-docker-egress-filtering.sh [--network-name NAME] [--dns-server IP] [--allow-ip IP]... [--block-subnet CIDR]... [--no-install] [--no-save]
 
 Configures Docker egress filtering for one Docker network only:
   - allows Internet egress
+  - allows explicitly approved destination IPs even when they fall inside blocked subnets
   - blocks access to one or more internal subnets
   - allows same-network container-to-container traffic
   - allows DNS to approved resolver
@@ -14,9 +15,11 @@ Configures Docker egress filtering for one Docker network only:
 Defaults:
   Docker network:  cri-dev-net
   DNS resolver:    172.19.20.19
+  allowed IPs:     172.19.21.28
   blocked subnets: 172.19.20.0/23, 172.19.149.0/26
 
 Notes:
+  - Repeat --allow-ip to add more single-IP exceptions.
   - Repeat --block-subnet to add more subnets.
   - Every blocked subnet uses REJECT --reject-with icmp-port-unreachable.
 EOF
@@ -24,6 +27,7 @@ EOF
 
 DOCKER_NETWORK_NAME="cri-dev-net"
 DNS_SERVER="172.19.20.19"
+ALLOW_SPECIFIC_IPS=("172.19.21.28")
 BLOCK_SUBNETS=("172.19.20.0/23" "172.19.149.0/26")
 INSTALL_PERSISTENCE=true
 SAVE_RULES=true
@@ -46,6 +50,15 @@ while (($# > 0)); do
         exit 1
       fi
       DNS_SERVER="$2"
+      shift 2
+      ;;
+    --allow-ip)
+      if (($# < 2)); then
+        echo "Error: --allow-ip requires a value."
+        usage
+        exit 1
+      fi
+      ALLOW_SPECIFIC_IPS+=("$2")
       shift 2
       ;;
     --block-subnet)
@@ -122,6 +135,16 @@ sudo iptables -A "${CHAIN_NAME}" -m conntrack --ctstate ESTABLISHED,RELATED -j A
 sudo iptables -A "${CHAIN_NAME}" -i "${NETWORK_IFACE}" -o "${NETWORK_IFACE}" -j ACCEPT
 sudo iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p udp --dport 53 -j ACCEPT
 sudo iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p tcp --dport 53 -j ACCEPT
+
+# Allow specific destination IPs before broader subnet rejects.
+declare -A seen_allow_ip=()
+for allow_ip in "${ALLOW_SPECIFIC_IPS[@]}"; do
+  if [[ -n "${seen_allow_ip[${allow_ip}]:-}" ]]; then
+    continue
+  fi
+  seen_allow_ip["${allow_ip}"]=1
+  sudo iptables -A "${CHAIN_NAME}" -d "${allow_ip}" -j ACCEPT
+done
 
 # Deduplicate blocked subnets while preserving order.
 declare -A seen_subnet=()
