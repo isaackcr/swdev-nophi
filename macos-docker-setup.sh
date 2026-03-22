@@ -515,6 +515,7 @@ fi
 
 install_commands_locally() {
   mkdir -p "${INSTALL_PREFIX}"
+  rm -f "${INSTALL_PREFIX}/nophi-start"
 
   cat > "${INSTALL_PREFIX}/nophi-start" <<EOF
 #!/usr/bin/env bash
