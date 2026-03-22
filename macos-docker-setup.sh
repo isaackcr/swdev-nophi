@@ -16,6 +16,8 @@ Sets up NOPHI Docker workflows for macOS 14+ (OrbStack or Docker Desktop Linux c
 Options:
   --network-name NAME         Protected Docker network (default: cri-dev-net)
   --dns-server IP             Allowed DNS resolver for protected network (default: 172.19.20.19)
+  --allow-ip IP               Allowed destination IP even within blocked subnets (repeatable)
+  --allow-ips-csv CSV         Comma-separated allowed destination IPs (internal helper option)
   --block-subnet CIDR         Blocked destination subnet (repeatable)
   --block-subnets-csv CSV     Comma-separated blocked subnets (internal helper option)
   --helper-image TAG          Helper image for VM firewall apply (default: nophi-egress-helper:ubuntu24.04)
@@ -32,6 +34,7 @@ EOF
 
 DOCKER_NETWORK_NAME="cri-dev-net"
 DNS_SERVER="172.19.20.19"
+ALLOW_SPECIFIC_IPS=("172.19.21.28")
 BLOCK_SUBNETS=("172.19.20.0/23" "172.19.149.0/26")
 FIREWALL_HELPER_IMAGE="nophi-egress-helper:ubuntu24.04"
 INSTALL_PREFIX="${HOME}/.local/bin"
@@ -63,6 +66,30 @@ while (($# > 0)); do
         exit 1
       fi
       DNS_SERVER="$2"
+      shift 2
+      ;;
+    --allow-ip)
+      if (($# < 2)); then
+        echo "Error: --allow-ip requires a value."
+        usage
+        exit 1
+      fi
+      ALLOW_SPECIFIC_IPS+=("$2")
+      shift 2
+      ;;
+    --allow-ips-csv)
+      if (($# < 2)); then
+        echo "Error: --allow-ips-csv requires a value."
+        usage
+        exit 1
+      fi
+      ALLOW_SPECIFIC_IPS=()
+      IFS=',' read -r -a parsed_allow_ips <<< "$2"
+      for allow_ip in "${parsed_allow_ips[@]}"; do
+        if [[ -n "${allow_ip}" ]]; then
+          ALLOW_SPECIFIC_IPS+=("${allow_ip}")
+        fi
+      done
       shift 2
       ;;
     --block-subnet)
@@ -181,6 +208,48 @@ dedupe_block_subnets() {
   done
 
   BLOCK_SUBNETS=("${deduped[@]}")
+}
+
+dedupe_allow_specific_ips() {
+  local deduped=()
+  local seen=""
+  local allow_ip=""
+
+  for allow_ip in "${ALLOW_SPECIFIC_IPS[@]}"; do
+    if [[ -z "${allow_ip}" ]]; then
+      continue
+    fi
+    case ",${seen}," in
+      *",${allow_ip},"*)
+        continue
+        ;;
+      *)
+        deduped+=("${allow_ip}")
+        if [[ -z "${seen}" ]]; then
+          seen="${allow_ip}"
+        else
+          seen="${seen},${allow_ip}"
+        fi
+        ;;
+    esac
+  done
+
+  ALLOW_SPECIFIC_IPS=("${deduped[@]}")
+}
+
+join_allow_specific_ips_csv() {
+  local csv=""
+  local allow_ip=""
+
+  for allow_ip in "${ALLOW_SPECIFIC_IPS[@]}"; do
+    if [[ -z "${csv}" ]]; then
+      csv="${allow_ip}"
+    else
+      csv="${csv},${allow_ip}"
+    fi
+  done
+
+  printf '%s' "${csv}"
 }
 
 join_block_subnets_csv() {
@@ -345,6 +414,7 @@ apply_egress_rules() {
   local network_id=""
   local network_iface=""
   local chain_name=""
+  local allow_ips_csv=""
   local block_csv=""
   local show_rules="0"
 
@@ -358,6 +428,7 @@ apply_egress_rules() {
   network_id="$(docker network inspect -f '{{.Id}}' "${DOCKER_NETWORK_NAME}")"
   network_iface="br-${network_id:0:12}"
   chain_name="$(stable_chain_name "${DOCKER_NETWORK_NAME}")"
+  allow_ips_csv="$(join_allow_specific_ips_csv)"
   block_csv="$(join_block_subnets_csv)"
 
   if [[ "${print_rules}" == "true" ]]; then
@@ -368,6 +439,7 @@ apply_egress_rules() {
     -e NETWORK_IFACE="${network_iface}" \
     -e CHAIN_NAME="${chain_name}" \
     -e DNS_SERVER="${DNS_SERVER}" \
+    -e ALLOW_IPS_CSV="${allow_ips_csv}" \
     -e BLOCK_SUBNETS_CSV="${block_csv}" \
     -e SHOW_RULES="${show_rules}" \
     "${FIREWALL_HELPER_IMAGE}" '
@@ -416,6 +488,12 @@ iptables -A "${CHAIN_NAME}" -i "${NETWORK_IFACE}" -o "${NETWORK_IFACE}" -j ACCEP
 iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p udp --dport 53 -j ACCEPT
 iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p tcp --dport 53 -j ACCEPT
 
+IFS="," read -r -a allow_ips <<< "${ALLOW_IPS_CSV}"
+for allow_ip in "${allow_ips[@]}"; do
+  [[ -n "${allow_ip}" ]] || continue
+  iptables -A "${CHAIN_NAME}" -d "${allow_ip}" -j ACCEPT
+done
+
 IFS="," read -r -a subnets <<< "${BLOCK_SUBNETS_CSV}"
 for subnet in "${subnets[@]}"; do
   [[ -n "${subnet}" ]] || continue
@@ -448,9 +526,11 @@ install_egress_launch_agent() {
   local launch_label="com.nophi.docker-egress"
   local launch_path="${HOME}/Library/LaunchAgents/${launch_label}.plist"
   local log_path="${HOME}/Library/Logs/nophi-docker-egress.log"
+  local allow_ips_csv=""
   local block_csv=""
   local uid_num=""
 
+  allow_ips_csv="$(join_allow_specific_ips_csv)"
   block_csv="$(join_block_subnets_csv)"
   uid_num="$(id -u)"
 
@@ -473,6 +553,8 @@ install_egress_launch_agent() {
     <string>${DOCKER_NETWORK_NAME}</string>
     <string>--dns-server</string>
     <string>${DNS_SERVER}</string>
+    <string>--allow-ips-csv</string>
+    <string>${allow_ips_csv}</string>
     <string>--block-subnets-csv</string>
     <string>${block_csv}</string>
     <string>--helper-image</string>
@@ -600,6 +682,7 @@ run_uninstall() {
 }
 
 dedupe_block_subnets
+dedupe_allow_specific_ips
 
 if [[ "${RUN_EGRESS_ONLY}" == "true" ]]; then
   if ! wait_for_egress_prereqs; then
@@ -652,5 +735,6 @@ echo "Shared data directory: ${SHARED_DIR}"
 echo "Protected network: ${DOCKER_NETWORK_NAME}"
 echo "Blocked subnets: $(join_block_subnets_csv)"
 echo "DNS allowlist target: ${DNS_SERVER}"
+echo "Allowed destination IP exceptions: $(join_allow_specific_ips_csv)"
 echo
 echo "If needed, add '${INSTALL_PREFIX}' to your PATH for nophi-start/nophi-remove."
