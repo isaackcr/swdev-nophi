@@ -161,6 +161,7 @@ Default egress policy:
 - Allows established/related return traffic
 - Allows same-network container-to-container traffic
 - Allows DNS to `172.19.20.19` on TCP/UDP 53
+- Allows explicit single-IP exceptions before subnet blocks (default: `172.19.21.28`)
 - Blocks internal subnets with `REJECT --reject-with icmp-port-unreachable`:
   - `172.19.20.0/23`
   - `172.19.149.0/26`
@@ -170,6 +171,8 @@ Add more blocked networks as needed:
 
 ```bash
 ./configure-docker-egress-filtering.sh \
+  --allow-ip 172.19.21.28 \
+  --allow-ip 172.19.21.29 \
   --block-subnet 172.19.30.0/24 \
   --block-subnet 10.42.0.0/16
 ```
