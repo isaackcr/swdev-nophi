@@ -156,11 +156,33 @@ resolve_host_timezone() {
       printf '%s\n' "${localtime_target#/usr/share/zoneinfo/}"
       return
       ;;
+    /private/usr/share/zoneinfo/*)
+      printf '%s\n' "${localtime_target#/private/usr/share/zoneinfo/}"
+      return
+      ;;
     /var/db/timezone/zoneinfo/*)
       printf '%s\n' "${localtime_target#/var/db/timezone/zoneinfo/}"
       return
       ;;
+    /private/var/db/timezone/zoneinfo/*)
+      printf '%s\n' "${localtime_target#/private/var/db/timezone/zoneinfo/}"
+      return
+      ;;
   esac
+
+  if [[ "${OS_NAME}" == "Darwin" && -L /var/db/timezone/localtime ]] && command -v readlink >/dev/null 2>&1; then
+    localtime_target="$(readlink /var/db/timezone/localtime 2>/dev/null || true)"
+    case "${localtime_target}" in
+      /var/db/timezone/zoneinfo/*)
+        printf '%s\n' "${localtime_target#/var/db/timezone/zoneinfo/}"
+        return
+        ;;
+      /private/var/db/timezone/zoneinfo/*)
+        printf '%s\n' "${localtime_target#/private/var/db/timezone/zoneinfo/}"
+        return
+        ;;
+    esac
+  fi
 
   if [[ "${OS_NAME}" == "Darwin" ]] && command -v systemsetup >/dev/null 2>&1; then
     tz_value="$(systemsetup -gettimezone 2>/dev/null | awk -F': ' 'NF > 1 {print $2}')"
