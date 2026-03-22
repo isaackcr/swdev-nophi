@@ -89,6 +89,7 @@ fi
 USER_HOME="$(resolve_user_home "${USER_NAME}")"
 OS_NAME="$(uname -s)"
 PORT="$((40000 + UID_NUM))"
+PORT_EXTRA="$((50000 + UID_NUM))"
 NAME=""
 IMAGE=""
 IMAGE_BUILD_HINT=""
@@ -316,6 +317,10 @@ if (( PORT > 65535 )); then
   fail "Derived port ${PORT} is invalid for UID ${UID_NUM}."
 fi
 
+if (( PORT_EXTRA > 65535 )); then
+  fail "Derived extra port ${PORT_EXTRA} is invalid for UID ${UID_NUM}."
+fi
+
 mkdir -p "${NOPHI_HOME}"
 
 ensure_docker_access
@@ -346,6 +351,7 @@ fi
 DOCKER_RUN_CMD+=(
   --network "${DEV_NET_NAME}"
   -p "${PORT}:22"
+  -p "${PORT_EXTRA}:3879"
   -e USERNAME="${USER_NAME}"
   -e USER_UID="${UID_NUM}"
   -e USER_GID="${GID_NUM}"
@@ -369,6 +375,7 @@ if [[ "${OS_NAME}" == "Darwin" ]]; then
 else
   echo "SSH with: ssh -p ${PORT} ${USER_NAME}@$(hostname)"
 fi
+echo "Forwarded container port 3879 is available on host port ${PORT_EXTRA}."
 if [[ "${REQUEST_MODE}" == "cuda" && "${RUN_MODE}" != "cuda" ]]; then
   echo "CUDA request was treated as a no-op on this host; CPU container was started."
 fi

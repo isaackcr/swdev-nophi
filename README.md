@@ -64,6 +64,7 @@ Startup behavior:
   - `${HOME}/.ssh/authorized_keys -> /home/${USER}/.ssh/authorized_keys` (read-only)
     Used for SSH access to the container user account. If `${HOME}/.ssh` is missing, `nophi-start` creates it as `0700`. If the host file is missing, `nophi-start` creates an empty `0600` file and tells you to copy in a public key before connecting.
 - SSH port is derived as `40000 + $(id -u)`
+- Forwarding port is derived as `50000 + $(id -u)` and maps to container port `3879`
 - SSH target:
   - Linux: `ssh -p <port> ${USER}@$(hostname)`
   - macOS: `ssh -p <port> ${USER}@localhost` (hostname may not resolve locally)
@@ -177,15 +178,17 @@ Add more blocked networks as needed:
   --block-subnet 10.42.0.0/16
 ```
 
-7. If UFW is enabled on the host, allow inbound SSH port range for remote clients.
+7. If UFW is enabled on the host, allow inbound SSH and forwarded port ranges for remote clients.
 
 ```bash
 sudo ufw allow from 172.19.149.0/24 to any port 42000:43000 proto tcp
 sudo ufw allow from 172.19.20.0/24 to any port 42000:43000 proto tcp
+sudo ufw allow from 172.19.149.0/24 to any port 52000:53000 proto tcp
+sudo ufw allow from 172.19.20.0/24 to any port 52000:53000 proto tcp
 sudo ufw status numbered
 ```
 
-Without these rules, SSH from another client may be blocked even when the container is running.
+Without these rules, SSH and forwarded access to container port `3879` from another client may be blocked even when the container is running.
 
 8. Build container images.
 
