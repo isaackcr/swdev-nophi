@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./test-nophi-egress.sh [--container NAME] [--dns-server IP] [--blocked-target IP]... [--timeout SECONDS]
+Usage: ./test-nophi-egress.sh [--container NAME] [--dns-server IP] [--allow-ip IP]... [--blocked-target IP]... [--timeout SECONDS]
 
 Runs egress network tests from inside a running NOPHI container and reports each result in order.
 
@@ -11,18 +11,21 @@ Defaults:
   container:      auto-detect running NOPHI container for current user
   internet test:  1.1.1.1:443 (must be reachable)
   DNS test:       172.19.20.19:53/TCP (must be reachable)
+  allow tests:    172.19.21.28:443 (must be reachable)
   blocked tests:  172.19.20.19:443 and 172.19.149.1:443 (must be blocked)
   timeout:        4 seconds
 
 Examples:
   ./test-nophi-egress.sh
   ./test-nophi-egress.sh --container isaac-NOPHI-myhost
+  ./test-nophi-egress.sh --allow-ip 172.19.21.29 --allow-ip 172.19.21.30
   ./test-nophi-egress.sh --blocked-target 10.42.0.10 --blocked-target 172.19.30.10
 EOF
 }
 
 CONTAINER_NAME=""
 DNS_SERVER="172.19.20.19"
+ALLOW_IPS=("172.19.21.28")
 BLOCKED_TARGETS=("172.19.20.19" "172.19.149.1")
 TIMEOUT_SECONDS=4
 INTERNET_HOST="1.1.1.1"
@@ -57,6 +60,15 @@ while (($# > 0)); do
         exit 1
       fi
       BLOCKED_TARGETS+=("$2")
+      shift 2
+      ;;
+    --allow-ip)
+      if (($# < 2)); then
+        echo "Error: --allow-ip requires a value."
+        usage
+        exit 1
+      fi
+      ALLOW_IPS+=("$2")
       shift 2
       ;;
     --timeout)
@@ -183,6 +195,22 @@ run_expect_success() {
   fi
 }
 
+run_expect_tcp_reachable() {
+  local description="$1"
+  local cmd="$2"
+  local output=""
+
+  print_test_header "${description}"
+  if output="$(run_in_container "${cmd}" 2>&1)"; then
+    print_test_result "PASS" "${output}"
+  elif printf '%s' "${output}" | grep -qi "Connection refused"; then
+    print_test_result "PASS (reachable, connection refused)" "${output}"
+  else
+    FAILED=$((FAILED + 1))
+    print_test_result "FAIL (expected TCP reachability)" "${output}"
+  fi
+}
+
 run_expect_failure() {
   local description="$1"
   local cmd="$2"
@@ -201,7 +229,7 @@ ensure_tools
 resolve_default_container
 ensure_container_running
 
-TOTAL_TESTS=$((2 + ${#BLOCKED_TARGETS[@]}))
+TOTAL_TESTS=$((2 + ${#ALLOW_IPS[@]} + ${#BLOCKED_TARGETS[@]}))
 
 echo "Running egress tests from container: ${CONTAINER_NAME}"
 echo "Timeout per probe: ${TIMEOUT_SECONDS}s"
@@ -214,6 +242,12 @@ run_expect_success \
 run_expect_success \
   "Allowed DNS TCP egress to ${DNS_SERVER}:${DNS_PORT}" \
   "nc -z -w ${TIMEOUT_SECONDS} ${DNS_SERVER} ${DNS_PORT}"
+
+for allow_ip in "${ALLOW_IPS[@]}"; do
+  run_expect_tcp_reachable \
+    "Allowed egress to ${allow_ip}:${BLOCKED_PORT}" \
+    "nc -z -w ${TIMEOUT_SECONDS} ${allow_ip} ${BLOCKED_PORT}"
+done
 
 for target in "${BLOCKED_TARGETS[@]}"; do
   run_expect_failure \
