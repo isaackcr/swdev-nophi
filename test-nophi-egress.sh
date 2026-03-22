@@ -245,8 +245,8 @@ run_expect_success \
 
 for allow_ip in "${ALLOW_IPS[@]}"; do
   run_expect_tcp_reachable \
-    "Allowed egress to ${allow_ip}:${BLOCKED_PORT}" \
-    "nc -z -w ${TIMEOUT_SECONDS} ${allow_ip} ${BLOCKED_PORT}"
+    "Allowed TCP connectivity to ${allow_ip}:${BLOCKED_PORT}" \
+    "nc -z -v -w ${TIMEOUT_SECONDS} ${allow_ip} ${BLOCKED_PORT}"
 done
 
 for target in "${BLOCKED_TARGETS[@]}"; do
