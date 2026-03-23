@@ -104,6 +104,7 @@ fi
 if [[ "${BUILD_CPU}" == "true" ]]; then
   docker build \
     --build-arg "BASE_IMAGE=${CPU_BASE_IMAGE}" \
+    --build-arg "INSTALL_NVTOP=false" \
     --tag "${CPU_IMAGE_TAG}" \
     --file "${SCRIPT_DIR}/Dockerfile" \
     "${SCRIPT_DIR}"
@@ -113,6 +114,7 @@ fi
 if [[ "${BUILD_CUDA}" == "true" ]]; then
   docker build \
     --build-arg "BASE_IMAGE=${CUDA_BASE_IMAGE}" \
+    --build-arg "INSTALL_NVTOP=true" \
     --tag "${CUDA_IMAGE_TAG}" \
     --file "${SCRIPT_DIR}/Dockerfile" \
     "${SCRIPT_DIR}"
