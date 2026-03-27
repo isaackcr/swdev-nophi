@@ -35,3 +35,17 @@ Set-Content -LiteralPath (Join-Path $Prefix "nophi-remove.cmd") -Value $removeSh
 Write-Host "Installed commands:"
 Write-Host ("  {0}" -f (Join-Path $Prefix "nophi-start.cmd"))
 Write-Host ("  {0}" -f (Join-Path $Prefix "nophi-remove.cmd"))
+
+# Add the install prefix to the user PATH if it isn't already there.
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if (-not $userPath) { $userPath = "" }
+$pathParts = $userPath -split ";" | Where-Object { $_ -ne "" }
+if ($pathParts -notcontains $Prefix) {
+    $newPath = ($pathParts + $Prefix) -join ";"
+    [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
+    $env:PATH += ";$Prefix"
+    Write-Host ("Added to user PATH: {0}" -f $Prefix)
+    Write-Host "PATH update is active in this session. New terminals will also pick it up."
+} else {
+    Write-Host ("Already in user PATH: {0}" -f $Prefix)
+}
