@@ -39,7 +39,9 @@ $legacyNames = @(
 )
 
 foreach ($legacyName in $legacyNames | Select-Object -Unique) {
-    & docker rm -f $legacyName *> $null
+    # docker rm -f exits non-zero and emits stderr when the container does not
+    # exist, which triggers a terminating error under $ErrorActionPreference = "Stop".
+    try { & docker rm -f $legacyName *> $null } catch { }
 }
 
 $dockerArgs = @(
