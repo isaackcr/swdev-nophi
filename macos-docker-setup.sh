@@ -484,7 +484,6 @@ for stale_chain in $(iptables -S | sed -n "s/^-N \\(DNET-[^ ]*\\)$/\\1/p"); do
 done
 
 iptables -A "${CHAIN_NAME}" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -A "${CHAIN_NAME}" -i "${NETWORK_IFACE}" -o "${NETWORK_IFACE}" -j ACCEPT
 iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p udp --dport 53 -j ACCEPT
 iptables -A "${CHAIN_NAME}" -d "${DNS_SERVER}" -p tcp --dport 53 -j ACCEPT
 
@@ -499,6 +498,9 @@ for subnet in "${subnets[@]}"; do
   [[ -n "${subnet}" ]] || continue
   iptables -A "${CHAIN_NAME}" -d "${subnet}" -j REJECT --reject-with icmp-port-unreachable
 done
+
+# Allow container-to-container traffic only after block rules so blocked subnets still win.
+iptables -A "${CHAIN_NAME}" -i "${NETWORK_IFACE}" -o "${NETWORK_IFACE}" -j ACCEPT
 
 iptables -A "${CHAIN_NAME}" -j ACCEPT
 
