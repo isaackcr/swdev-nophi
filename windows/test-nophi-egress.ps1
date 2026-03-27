@@ -17,8 +17,11 @@ if ($Timeout -lt 1) {
 }
 
 if (-not $Container) {
-    $candidates = Get-RunningNophiContainersForCurrentUser
-    if (-not $candidates -or $candidates.Count -eq 0) {
+    # Wrap in @() to ensure array type regardless of how many results are returned.
+    # PowerShell unwraps single-element pipeline results to a bare string, which
+    # has no .Count property and causes a PropertyNotFoundException under Set-StrictMode.
+    $candidates = @(Get-RunningNophiContainersForCurrentUser)
+    if ($candidates.Count -eq 0) {
         Fail ("No running NOPHI container found for user '{0}'. Pass -Container NAME." -f (Get-SafeUserName))
     }
 
@@ -43,9 +46,19 @@ if ($LASTEXITCODE -ne 0 -or $runningState -ne "true") {
 function Invoke-InContainer {
     param([Parameter(Mandatory = $true)][string]$Command)
 
-    $output = & docker exec $Container bash -lc $Command 2>&1
+    # docker exec emits to stderr on failure (e.g. container restarting), which
+    # triggers a terminating error under $ErrorActionPreference = "Stop".
+    # Capture both streams and preserve exit code manually.
+    $output = $null
+    $exitCode = 1
+    try {
+        $output = & docker exec $Container bash -lc $Command 2>&1
+        $exitCode = $LASTEXITCODE
+    } catch {
+        $output = $_.ToString()
+    }
     return [pscustomobject]@{
-        ExitCode = $LASTEXITCODE
+        ExitCode = $exitCode
         Output = ($output | Out-String).TrimEnd()
     }
 }
@@ -56,6 +69,8 @@ $dnsPort = 53
 $blockedPort = 443
 $script:testsFailed = 0
 $script:testIndex = 0
+$AllowIp = @($AllowIp)
+$BlockedTarget = @($BlockedTarget)
 $script:totalTests = 2 + $AllowIp.Count + $BlockedTarget.Count
 
 function Write-TestHeader {

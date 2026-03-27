@@ -16,8 +16,18 @@ function Ensure-Network {
     $exists = $false
     $recreate = $false
 
-    $inspectOutput = & docker network inspect $Name 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    # Use SilentlyContinue locally so a missing network (non-zero exit) does not
+    # trigger a terminating error under $ErrorActionPreference = "Stop".
+    $inspectOutput = $null
+    $inspectExitCode = 0
+    try {
+        $inspectOutput = & docker network inspect $Name 2>$null
+        $inspectExitCode = $LASTEXITCODE
+    } catch {
+        $inspectExitCode = 1
+    }
+
+    if ($inspectExitCode -eq 0) {
         $exists = $true
         $networkData = $inspectOutput | ConvertFrom-Json
         $currentConfig = $networkData[0].IPAM.Config[0]

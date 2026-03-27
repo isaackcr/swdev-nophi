@@ -140,8 +140,14 @@ function Test-HostSupportsCuda {
         return $false
     }
 
-    & docker run --rm --gpus all nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04 nvidia-smi *> $null
-    return ($LASTEXITCODE -eq 0)
+    # docker run prints to stderr when pulling/checking the image, which triggers
+    # a terminating error under $ErrorActionPreference = "Stop". Wrap in try/catch.
+    try {
+        & docker run --rm --gpus all nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04 nvidia-smi *> $null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
 }
 
 function Get-ContainerName {
