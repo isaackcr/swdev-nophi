@@ -17,7 +17,7 @@ Defaults:
 
 Examples:
   ./test-nophi-egress.sh
-  ./test-nophi-egress.sh --container isaac-NOPHI-myhost
+  ./test-nophi-egress.sh --container <user>-NOPHI-<host>
   ./test-nophi-egress.sh --allow-ip 172.19.21.29 --allow-ip 172.19.21.30
   ./test-nophi-egress.sh --blocked-target 10.42.0.10 --blocked-target 172.19.30.10
 EOF

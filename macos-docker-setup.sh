@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: ./macos-docker-setup.sh [options]
 
-Sets up NOPHI Docker workflows for macOS 14+ (OrbStack or Docker Desktop Linux containers), single-user mode:
+Sets up NOPHI Docker workflows for macOS 14+ (OrbStack, Docker Desktop, or Colima Linux containers), single-user mode:
   - prepares ~/NOPHI-shared for the current user
   - ensures Docker networks exist (cri-dev-net + cri-collab-net)
   - builds CPU image only (no CUDA path on macOS)
@@ -183,6 +183,40 @@ fail() {
   exit 1
 }
 
+resolve_shell_rc_file() {
+  local shell_name=""
+
+  shell_name="$(basename "${SHELL:-}")"
+
+  case "${shell_name}" in
+    zsh)
+      printf '%s\n' "${HOME}/.zshrc"
+      ;;
+    bash)
+      printf '%s\n' "${HOME}/.bash_profile"
+      ;;
+    *)
+      printf '%s\n' "${HOME}/.zshrc"
+      ;;
+  esac
+}
+
+shell_path_for_display() {
+  local path_value="$1"
+
+  case "${path_value}" in
+    "${HOME}")
+      printf '%s\n' '$HOME'
+      ;;
+    "${HOME}"/*)
+      printf '%s\n' "\$HOME/${path_value#"${HOME}/"}"
+      ;;
+    *)
+      printf '%s\n' "${path_value}"
+      ;;
+  esac
+}
+
 dedupe_block_subnets() {
   local deduped=()
   local seen=""
@@ -343,11 +377,11 @@ ensure_supported_macos_docker_engine() {
   local docker_host=""
 
   if ! command -v docker >/dev/null 2>&1; then
-    fail "docker command not found. Install Docker Desktop or OrbStack first."
+    fail "docker command not found. Install Docker Desktop, OrbStack, or Colima first."
   fi
 
   if ! docker info >/dev/null 2>&1; then
-    fail "Docker is not running. Start Docker Desktop or OrbStack and retry."
+    fail "Docker is not running. Start Docker Desktop, OrbStack, or Colima and retry."
   fi
 
   os_type="$(docker info --format '{{.OSType}}' 2>/dev/null || true)"
@@ -369,6 +403,11 @@ ensure_supported_macos_docker_engine() {
     return
   fi
 
+  if [[ "${operating_system}" == *"Colima"* ]]; then
+    echo "Detected engine: Colima"
+    return
+  fi
+
   if [[ "${docker_host}" == *".orbstack/run/docker.sock"* ]]; then
     echo "Detected engine: OrbStack (${docker_host})"
     return
@@ -376,6 +415,11 @@ ensure_supported_macos_docker_engine() {
 
   if [[ "${docker_host}" == *".docker/run/docker.sock"* ]]; then
     echo "Detected engine: Docker Desktop (${docker_host})"
+    return
+  fi
+
+  if [[ "${docker_host}" == *".colima/"* ]]; then
+    echo "Detected engine: Colima (${docker_host})"
     return
   fi
 
@@ -625,6 +669,7 @@ install_egress_launch_agent() {
     <string>/var/run/docker.sock</string>
     <string>${HOME}/.docker/run/docker.sock</string>
     <string>${HOME}/.orbstack/run/docker.sock</string>
+    <string>${HOME}/.colima/default/docker.sock</string>
   </array>
   <key>StandardOutPath</key>
   <string>${log_path}</string>
@@ -723,11 +768,11 @@ run_uninstall() {
   remove_egress_launch_agent
 
   if ! command -v docker >/dev/null 2>&1; then
-    fail "docker command not found. Start Docker Desktop or OrbStack and rerun uninstall to remove firewall and network settings."
+    fail "docker command not found. Start Docker Desktop, OrbStack, or Colima and rerun uninstall to remove firewall and network settings."
   fi
 
   if ! docker info >/dev/null 2>&1; then
-    fail "Docker is not running. Start Docker Desktop or OrbStack and rerun uninstall."
+    fail "Docker is not running. Start Docker Desktop, OrbStack, or Colima and rerun uninstall."
   fi
 
   ensure_supported_macos_docker_engine
@@ -795,4 +840,9 @@ echo "Blocked subnets: $(join_block_subnets_csv)"
 echo "DNS allowlist target: ${DNS_SERVER}"
 echo "Allowed destination IP exceptions: $(join_allow_specific_ips_csv)"
 echo
-echo "If needed, add '${INSTALL_PREFIX}' to your PATH for nophi-start/nophi-remove."
+SHELL_RC_FILE="$(resolve_shell_rc_file)"
+DISPLAY_INSTALL_PREFIX="$(shell_path_for_display "${INSTALL_PREFIX}")"
+DISPLAY_SHELL_RC_FILE="$(shell_path_for_display "${SHELL_RC_FILE}")"
+echo "To add '${INSTALL_PREFIX}' to your PATH for future shells, run:"
+echo "  echo 'export PATH=\"${DISPLAY_INSTALL_PREFIX}:\$PATH\"' >> \"${DISPLAY_SHELL_RC_FILE}\""
+echo "  source \"${DISPLAY_SHELL_RC_FILE}\""

@@ -251,9 +251,17 @@ sudo usermod -aG docker,cri-shared <username>
 
 Users added to new groups must log out and back in.
 
-## macOS 14+ (Single User, OrbStack or Docker Desktop Linux Containers)
+## macOS 14+ (Single User, OrbStack, Docker Desktop, or Colima Linux Containers)
 
 Use this flow on macOS instead of the Linux server-prep steps below.
+
+On macOS Tahoe+ systems using Colima, use the Colima bootstrap wrapper instead:
+
+```bash
+./macos-colima-setup.sh
+```
+
+It installs missing Homebrew packages for Colima (`colima`, `docker`, and `lima`), starts Colima, then runs the standard macOS setup flow below.
 
 1. Run setup:
 
@@ -296,9 +304,11 @@ Uninstall removes:
 ## Script Reference
 
 - `macos-docker-setup.sh`
-  - macOS 14+ single-user setup for OrbStack or Docker Desktop Linux containers
+  - macOS 14+ single-user setup for OrbStack, Docker Desktop, or Colima Linux containers
   - Configures `~/NOPHI-shared`, networks, CPU image build, command install, VM egress filtering, and LaunchAgent persistence
   - `--uninstall` removes script-managed macOS network settings
+- `macos-colima-setup.sh`
+  - macOS Tahoe+ wrapper that installs missing Colima prerequisites, starts Colima, and then runs `macos-docker-setup.sh`
 - `build-NOPHI-dev.sh`
   - Builds CPU and CUDA images by default, or selected image(s) with `--cpu` / `--cuda`
 - `start-NOPHI-dev.sh`
